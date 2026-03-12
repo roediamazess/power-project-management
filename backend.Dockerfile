@@ -13,9 +13,10 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
 
 WORKDIR /app
 
-# Copy composer files and install PHP dependencies
+# Copy composer files and install PHP dependencies (tanpa menjalankan script artisan)
 COPY backend/composer.json backend/composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --no-scripts
 
 # Copy the rest of the backend application
 COPY backend/ .
+
