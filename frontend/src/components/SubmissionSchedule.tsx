@@ -229,7 +229,11 @@ export default function SubmissionSchedule() {
   });
 
   const users = data.filter((d) => d.type === "user") as UserRecord[];
-  const schedules = data.filter((d) => d.type === "schedule") as ScheduleRecord[];
+  const schedules = Array.from(
+    new Map(
+      (data.filter((d) => d.type === "schedule") as ScheduleRecord[]).map((s) => [s.__backendId ?? s.schedule_id, s])
+    ).values()
+  );
   const batches = data.filter((d) => d.type === "batch");
   const teamUsers = users.filter((u) => u.role === "team").sort((a, b) => a.username.localeCompare(b.username));
   const myNotifs = notifications.filter(
@@ -611,7 +615,7 @@ export default function SubmissionSchedule() {
       if (resPickup.isOk) {
         showToast("Schedule berhasil di-pick up");
         pushNotification("all_admin", `${currentUser.username} mem-pickup jadwal ${sched.schedule_name}`);
-        // claimSchedule sudah meng-update store lokal, tidak perlu refetch penuh di sini
+        await fetchAndReplaceFromBackend();
       } else if (resPickup.conflict?.picked_by) {
         showToast(`Jadwal ini sudah diambil oleh ${resPickup.conflict.picked_by}. Silakan pilih jadwal lain.`);
         fetchAndReplaceFromBackend();

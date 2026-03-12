@@ -108,7 +108,13 @@ function save(data: DataRecord[]) {
 
 /** Replace entire store (e.g. after fetching from API) and notify listeners. */
 export function replaceStore(records: DataRecord[]) {
-  store = [...records];
+  const seen = new Set<string>();
+  store = records.filter((r) => {
+    const id = (r as DataRecord & { __backendId?: string }).__backendId;
+    if (id && seen.has(id)) return false;
+    if (id) seen.add(id);
+    return true;
+  });
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
