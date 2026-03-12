@@ -531,8 +531,14 @@ export default function SubmissionSchedule() {
           if (result.isOk) ok++;
         }
       }
+      // Refresh penuh dari backend supaya daftar batch + jadwal individu langsung konsisten
+      await fetchAndReplaceFromBackend();
       setModals((m) => ({ ...m, createBatch: false }));
-      showToast(ok === checkboxes.length ? `Batch "${batchName}" (${pointMin}-${pointMax} pts) berhasil dibuat dengan ${checkboxes.length} schedule` : `Berhasil ${ok}/${checkboxes.length}. Cek koneksi backend.`);
+      showToast(
+        ok === checkboxes.length
+          ? `Batch "${batchName}" (${pointMin}-${pointMax} pts) berhasil dibuat dengan ${checkboxes.length} schedule`
+          : `Berhasil ${ok}/${checkboxes.length}. Cek koneksi backend.`
+      );
     },
     [schedules, showToast]
   );
@@ -605,23 +611,34 @@ export default function SubmissionSchedule() {
       if (resPickup.isOk) {
         showToast("Schedule berhasil di-pick up");
         pushNotification("all_admin", `${currentUser.username} mem-pickup jadwal ${sched.schedule_name}`);
+        await fetchAndReplaceFromBackend();
       } else if (resPickup.conflict?.picked_by) {
         showToast(`Jadwal ini sudah diambil oleh ${resPickup.conflict.picked_by}. Silakan pilih jadwal lain.`);
         fetchAndReplaceFromBackend();
       } else showToast("Gagal pickup. Cek koneksi backend.");
     } else if (pendingAction.action === "reopen") {
-      const resReopen = await reopenSchedule(sched.__backendId!, currentUser.username, currentUser.role === "admin");
+      const resReopen = await reopenSchedule(
+        sched.__backendId!,
+        currentUser.username,
+        currentUser.role === "admin"
+      );
       if (resReopen.isOk) {
         showToast("Schedule kembali tersedia");
+        await fetchAndReplaceFromBackend();
       } else {
         showToast("Gagal reopen. Hanya pemilik jadwal atau admin yang boleh, atau cek koneksi backend.");
         fetchAndReplaceFromBackend();
       }
     } else if (pendingAction.action === "release") {
-      const resRelease = await releaseSchedule(sched.__backendId!, currentUser.username, currentUser.role === "admin");
+      const resRelease = await releaseSchedule(
+        sched.__backendId!,
+        currentUser.username,
+        currentUser.role === "admin"
+      );
       if (resRelease.isOk) {
         showToast("Schedule berhasil di-publish ke Jobsheet");
         pushNotification(sched.picked_by, `Jadwal ${sched.schedule_name} baru saja di-publish ke Jobsheet Anda`);
+        await fetchAndReplaceFromBackend();
       } else {
         showToast("Gagal release. Hanya pemilik jadwal atau admin yang boleh, atau cek koneksi backend.");
         fetchAndReplaceFromBackend();
