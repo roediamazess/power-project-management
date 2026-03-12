@@ -28,8 +28,6 @@ services:
     ports:
       - "8000:8000"
     working_dir: /app
-    volumes:
-      - ./backend:/app
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
@@ -63,8 +61,6 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - frontend
       - backend
