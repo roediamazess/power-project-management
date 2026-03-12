@@ -611,7 +611,7 @@ export default function SubmissionSchedule() {
       if (resPickup.isOk) {
         showToast("Schedule berhasil di-pick up");
         pushNotification("all_admin", `${currentUser.username} mem-pickup jadwal ${sched.schedule_name}`);
-        await fetchAndReplaceFromBackend();
+        // claimSchedule sudah meng-update store lokal, tidak perlu refetch penuh di sini
       } else if (resPickup.conflict?.picked_by) {
         showToast(`Jadwal ini sudah diambil oleh ${resPickup.conflict.picked_by}. Silakan pilih jadwal lain.`);
         fetchAndReplaceFromBackend();
