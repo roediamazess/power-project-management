@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: schedule_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    ports:
+      - "8000:8000"
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: secretpassword
+      DB_DATABASE: schedule_db
+    depends_on:
+      - db
+    # Jalankan migrasi otomatis setiap start (termasuk saat migrasi/deploy), lalu jalankan server
+    command: sh -c "php artisan migrate --force && exec php artisan serve --host=0.0.0.0 --port=8000"
+    
+  frontend:
+    # Use non-alpine image so lightningcss native binary is available (linux-x64-gnu)
+    image: node:20
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    command: npm run dev
+    environment:
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      # Poll interval (ms); helps detect file changes when using Docker on Windows
+      - CHOKIDAR_INTERVAL=1000
+
+volumes:
+  db_data:

@@ -1,0 +1,5 @@
+# Copy-paste baris di bawah ini ke file hosts Anda (ganti semua baris powerpro yang lama).
+# Atau ikuti instruksi di chat: hapus baris powerpro, tambah 2 baris ini.
+
+43.153.211.40 powerpro.cloud
+43.153.211.40 www.powerpro.cloud

@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="id" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submission Schedule System</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body, #app {
+      height: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: #f8fafc;
+    }
+
+    .gradient-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px -5px rgba(15, 23, 42, 0.08);
+      border-color: #cbd5e1;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      transition: all 0.3s ease;
+      border: none;
+      box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px -2px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .status-available {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-picked {
+      background: #fef08a;
+      color: #78350f;
+    }
+
+    .status-released {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    input, textarea {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      background: #f8faff;
+    }
+
+    select {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      background: #f8faff;
+    }
+
+    .spinner {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      animation: slideIn 0.3s ease;
+      z-index: 40;
+      max-width: 400px;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* Dark mode styles */
+    body.dark-mode {
+      background: #0f172a;
+    }
+
+    body.dark-mode .card-hover {
+      background: #1e293b;
+      border-color: #334155;
+    }
+
+    body.dark-mode .card-hover:hover {
+      border-color: #475569;
+      box-shadow: 0 12px 24px -5px rgba(0, 0, 0, 0.4);
+    }
+
+    body.dark-mode .modal-content {
+      background: #1e293b;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+    }
+
+    body.dark-mode input,
+    body.dark-mode textarea,
+    body.dark-mode select {
+      background: #0f172a;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+
+    body.dark-mode input:focus,
+    body.dark-mode textarea:focus,
+    body.dark-mode select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+      background: #1e293b;
+    }
+
+    body.dark-mode .toast {
+      background: #1e293b;
+      color: #e2e8f0;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    }
+
+    body.dark-mode h1,
+    body.dark-mode h2,
+    body.dark-mode h3,
+    body.dark-mode .text-gray-800 {
+      color: #e2e8f0;
+    }
+
+    body.dark-mode .text-gray-600 {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .text-gray-700 {
+      color: #d1d5db;
+    }
+
+    body.dark-mode .text-gray-500 {
+      color: #94a3b8;
+    }
+
+    body.dark-mode .bg-white {
+      background: #1e293b;
+      color: #e2e8f0;
+    }
+
+    body.dark-mode .border-gray-100 {
+      border-color: #334155;
+    }
+
+    body.dark-mode .border-gray-200 {
+      border-color: #334155;
+    }
+
+    body.dark-mode label {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .bg-gray-300 {
+      background: #475569;
+      color: #e2e8f0;
+    }
+
+    body.dark-mode .bg-gray-300:hover {
+      background: #64748b;
+    }
+
+    body.dark-mode .text-blue-600 {
+      color: #60a5fa;
+    }
+
+    body.dark-mode .text-blue-600:hover {
+      color: #93c5fd;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1.2rem;
+    }
+
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    body.dark-mode .theme-toggle {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    body.dark-mode .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .modal-large {
+      max-width: 700px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checkbox-item input {
+      width: auto;
+      margin: 0;
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body>
+  <div id="app" class="h-full w-full overflow-auto"><!-- Login Screen -->
+   <div id="loginScreen" class="h-full w-full flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+     <div class="bg-white rounded-2xl shadow-2xl p-8 fade-in border border-gray-100">
+      <h1 class="text-4xl font-bold text-center mb-2" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Submission Schedule</h1>
+      <p class="text-center text-gray-600 mb-8 text-sm font-medium">Manage your team's submission schedule efficiently</p>
+      <form id="loginForm" class="space-y-4">
+       <div><label class="block text-sm font-semibold text-gray-700 mb-2">Username</label> <input type="text" id="loginUsername" placeholder="Enter username" required class="w-full">
+       </div>
+       <div><label class="block text-sm font-semibold text-gray-700 mb-2">Password</label> <input type="password" id="loginPassword" placeholder="Enter password" required class="w-full">
+       </div><button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg mt-6"> Login </button>
+      </form>
+      <div class="border-t border-gray-200 my-6"></div>
+      <div class="text-sm text-gray-600 mb-4">
+       <p class="font-semibold mb-2">Demo Accounts:</p>
+       <p><strong>Admin:</strong> admin / admin123</p>
+       <p><strong>Team:</strong> user1 / pass123</p>
+      </div><button id="toggleRegister" class="w-full text-blue-600 hover:text-blue-700 font-semibold text-sm"> Don't have an account? Register here </button>
+     </div>
+    </div>
+   </div><!-- Register Screen -->
+   <div id="registerScreen" class="hidden h-full w-full flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+     <div class="bg-white rounded-2xl shadow-2xl p-8 fade-in border border-gray-100">
+      <h1 class="text-3xl font-bold text-center mb-8" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Create New Account</h1>
+      <form id="registerForm" class="space-y-4">
+       <div><label class="block text-sm font-semibold text-gray-700 mb-2">Username</label> <input type="text" id="regUsername" placeholder="Choose username" required class="w-full">
+       </div>
+       <div><label class="block text-sm font-semibold text-gray-700 mb-2">Password</label> <input type="password" id="regPassword" placeholder="Create password" required class="w-full">
+       </div>
+       <div><label class="block text-sm font-semibold text-gray-700 mb-2">Role</label> <select id="regRole" required class="w-full"> <option value="">-- Select Role --</option> <option value="team">Team Member</option> </select>
+       </div><button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg mt-6"> Register </button>
+      </form><button id="toggleLogin" class="w-full text-blue-600 hover:text-blue-700 font-semibold text-sm mt-6"> Already have an account? Login here </button>
+     </div>
+    </div>
+   </div><!-- Main Dashboard -->
+   <div id="dashboard" class="hidden h-full w-full"><!-- Header -->
+    <header class="gradient-header text-white shadow-lg sticky top-0 z-20">
+     <div class="max-w-7xl mx-auto px-4 py-5 flex justify-between items-center">
+      <div>
+       <h1 class="text-2xl font-bold tracking-tight">Submission Schedule</h1>
+       <p id="userGreeting" class="text-sm opacity-80 font-medium"></p>
+      </div>
+      <div class="flex gap-3 items-center"><button id="themeToggle" class="theme-toggle" title="Toggle dark mode"> 🌙 </button> <button id="logoutBtn" class="bg-white bg-opacity-15 hover:bg-opacity-25 text-white font-semibold py-2 px-5 rounded-lg transition duration-200 border border-white border-opacity-20"> Logout </button>
+      </div>
+     </div>
+    </header><!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 h-full"><!-- Admin Panel -->
+     <div id="adminPanel" class="hidden mb-8">
+      <div class="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Admin Panel</h2>
+       <div class="flex gap-3 flex-wrap"><button id="createScheduleBtn" class="btn-primary text-white font-bold py-2 px-6 rounded-lg"> + Create Schedule </button> <button id="createBatchBtn" class="btn-primary text-white font-bold py-2 px-6 rounded-lg"> + Create Batch </button> <button id="manageTiersBtn" class="btn-primary text-white font-bold py-2 px-6 rounded-lg"> 👥 Manage User Tiers </button>
+       </div>
+      </div>
+     </div><!-- Schedules Container -->
+     <div id="schedulesContainer" class="space-y-4 pb-8">
+      <p class="text-gray-500 text-center py-8">Memuat data...</p>
+     </div>
+    </main>
+   </div>
+  </div><!-- Create Schedule Modal -->
+  <div id="createScheduleModal" class="hidden modal-overlay">
+   <div class="modal-content">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Create Schedule</h2>
+    <form id="createScheduleForm" class="space-y-4">
+     <div><label class="block text-sm font-semibold text-gray-700 mb-2">Schedule Name</label> <select id="schedName" required class="w-full"> <option value="">-- Select Schedule Type --</option> <option value="Day">Day</option> <option value="Middle">Middle</option> <option value="Duty">Duty</option> <option value="Saturday">Saturday</option> <option value="Sunday">Sunday</option> <option value="Public Holiday">Public Holiday</option> </select>
+     </div>
+     <div><label class="block text-sm font-semibold text-gray-700 mb-2">Description</label> <textarea id="schedDesc" placeholder="Full description..." rows="3" class="w-full"></textarea>
+     </div>
+     <div><label class="block text-sm font-semibold text-gray-700 mb-2">Start Date</label> <input type="date" id="schedStart" required class="w-full">
+     </div>
+     <div><label class="block text-sm font-semibold text-gray-700 mb-2">End Date</label> <input type="date" id="schedEnd" required class="w-full">
+     </div>
+     <div><label class="block text-sm font-semibold text-gray-700 mb-2">Support Needed</label> <select id="schedSupport" class="w-full"> <option value="1">1</option> <option value="2">2</option> <option value="3">3</option> <option value="4">4</option> </select>
+     </div>
+     <div class="flex gap-2 mt-6"><button type="submit" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Create </button> <button type="button" id="cancelCreateBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Cancel </button>
+     </div>
+    </form>
+   </div>
+  </div><!-- Create Batch Modal -->
+  <div id="createBatchModal" class="hidden modal-overlay">
+   <div class="modal-content modal-large">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Create Batch</h2>
+    <form id="createBatchForm" class="space-y-4">
+     <div><label class="block text-sm font-semibold text-gray-700 mb-2">Batch Name</label> <input type="text" id="batchName" placeholder="e.g. Middle Batch A" required class="w-full">
+     </div>
+     <div class="grid grid-cols-2 gap-3">
+      <div><label class="block text-sm font-semibold text-gray-700 mb-2">Min Points Required</label> <input type="number" id="batchPointMin" placeholder="3" required min="1" max="12" class="w-full">
+      </div>
+      <div><label class="block text-sm font-semibold text-gray-700 mb-2">Max Points Allowed</label> <input type="number" id="batchPointMax" placeholder="6" required min="1" max="12" class="w-full">
+      </div>
+     </div>
+     <div><label class="block text-sm font-semibold text-gray-700 mb-2">Select Schedules (Manual)</label>
+      <div id="schedulesList" class="border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto space-y-3 bg-gray-50">
+       <p class="text-gray-500 text-sm">Loading available schedules...</p>
+      </div>
+     </div>
+     <div class="flex gap-2 mt-6"><button type="submit" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Create Batch </button> <button type="button" id="cancelBatchBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Cancel </button>
+     </div>
+    </form>
+   </div>
+  </div><!-- Manage Tiers Modal -->
+  <div id="manageTiersModal" class="hidden modal-overlay">
+   <div class="modal-content modal-large">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Manage User Tiers</h2>
+    <div id="tiersList" class="space-y-3">
+     <p class="text-gray-500 text-sm">Loading users...</p>
+    </div>
+    <div class="flex gap-2 mt-6"><button id="closeTiersBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Close </button>
+    </div>
+   </div>
+  </div><!-- Action Modal (Pickup/Release/ReOpen) -->
+  <div id="actionModal" class="hidden modal-overlay">
+   <div class="modal-content">
+    <h2 id="actionModalTitle" class="text-2xl font-bold text-gray-800 mb-4"></h2>
+    <p id="actionModalMessage" class="text-gray-600 mb-6 text-sm leading-relaxed"></p>
+    <div class="flex gap-2"><button id="confirmActionBtn" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Confirm </button> <button id="cancelActionBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Cancel </button>
+    </div>
+   </div>
+  </div><!-- Toast Notification -->
+  <div id="toast" class="hidden toast">
+   <p id="toastMessage"></p>
+  </div>
+  <script>
+    let currentUser = null;
+    let allUsers = [];
+    let allSchedules = [];
+    let allBatches = [];
+    let pendingAction = null;
+
+    const dataHandler = {
+      onDataChanged(data) {
+        separateData(data);
+        if (currentUser) {
+          renderDashboard();
+        }
+      }
+    };
+
+    // Initialize SDK
+    (async () => {
+      const result = await window.dataSdk.init(dataHandler);
+      if (!result.isOk) {
+        showToast('Error initializing data');
+      }
+
+      window.elementSdk?.init({
+        defaultConfig: { app_title: 'Submission Schedule System' },
+        onConfigChange: () => {},
+        mapToCapabilities: () => ({ recolorables: [], borderables: [], fontEditable: undefined, fontSizeable: undefined }),
+        mapToEditPanelValues: (config) => new Map([['app_title', config.app_title]])
+      });
+
+      setupEventListeners();
+    })();
+
+    function separateData(data) {
+      allUsers = data.filter(d => d.type === 'user');
+      allSchedules = data.filter(d => d.type === 'schedule');
+      allBatches = data.filter(d => d.type === 'batch');
+    }
+
+    function setupEventListeners() {
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('themeToggle').textContent = '☀️';
+      }
+
+      document.getElementById('loginForm').addEventListener('submit', handleLogin);
+      document.getElementById('registerForm').addEventListener('submit', handleRegister);
+      document.getElementById('toggleRegister').addEventListener('click', toggleScreen('registerScreen'));
+      document.getElementById('toggleLogin').addEventListener('click', toggleScreen('loginScreen'));
+      document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+      document.getElementById('createScheduleBtn').addEventListener('click', () => {
+        document.getElementById('createScheduleModal').classList.remove('hidden');
+      });
+      document.getElementById('cancelCreateBtn').addEventListener('click', () => {
+        document.getElementById('createScheduleModal').classList.add('hidden');
+      });
+      document.getElementById('createScheduleForm').addEventListener('submit', handleCreateSchedule);
+
+      document.getElementById('createBatchBtn').addEventListener('click', showCreateBatchModal);
+      document.getElementById('cancelBatchBtn').addEventListener('click', () => {
+        document.getElementById('createBatchModal').classList.add('hidden');
+      });
+      document.getElementById('createBatchForm').addEventListener('submit', handleCreateBatch);
+
+      document.getElementById('manageTiersBtn').addEventListener('click', showManageTiersModal);
+      document.getElementById('closeTiersBtn').addEventListener('click', () => {
+        document.getElementById('manageTiersModal').classList.add('hidden');
+      });
+
+      document.getElementById('cancelActionBtn').addEventListener('click', () => {
+        document.getElementById('actionModal').classList.add('hidden');
+        pendingAction = null;
+      });
+      document.getElementById('confirmActionBtn').addEventListener('click', handleConfirmAction);
+    }
+
+    function toggleScreen(screenId) {
+      return () => {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('registerScreen').classList.add('hidden');
+        document.getElementById(screenId).classList.remove('hidden');
+      };
+    }
+
+    function toggleTheme() {
+      const body = document.body;
+      const themeBtn = document.getElementById('themeToggle');
+      
+      body.classList.toggle('dark-mode');
+      
+      if (body.classList.contains('dark-mode')) {
+        localStorage.setItem('theme', 'dark');
+        themeBtn.textContent = '☀️';
+      } else {
+        localStorage.setItem('theme', 'light');
+        themeBtn.textContent = '🌙';
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+
+      let user = allUsers.find(u => u.username === username && u.password === password);
+      
+      if (!user) {
+        if (username === 'admin' && password === 'admin123') {
+          user = {
+            type: 'user',
+            username: 'admin',
+            password: 'admin123',
+            role: 'admin',
+            tier: 'admin',
+            point: 0,
+            schedule_id: '',
+            schedule_name: '',
+            description: '',
+            start_date: '',
+            end_date: '',
+            batch_id: '',
+            batch_name: '',
+            point_min: 0,
+            point_max: 0,
+            status: '',
+            picked_by: '',
+            released_at: '',
+            created_by: '',
+            created_at: ''
+          };
+        } else if (username === 'user1' && password === 'pass123') {
+          user = {
+            type: 'user',
+            username: 'user1',
+            password: 'pass123',
+            role: 'team',
+            tier: 'tier_2',
+            point: 2,
+            schedule_id: '',
+            schedule_name: '',
+            description: '',
+            start_date: '',
+            end_date: '',
+            batch_id: '',
+            batch_name: '',
+            point_min: 0,
+            point_max: 0,
+            status: '',
+            picked_by: '',
+            released_at: '',
+            created_by: '',
+            created_at: ''
+          };
+        }
+      }
+
+      if (user) {
+        currentUser = user;
+        showLoginUI();
+      } else {
+        showToast('Username atau password salah');
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const username = document.getElementById('regUsername').value;
+      const password = document.getElementById('regPassword').value;
+      const role = document.getElementById('regRole').value;
+
+      if (allUsers.some(u => u.username === username)) {
+        showToast('Username sudah terdaftar');
+        return;
+      }
+
+      const result = await window.dataSdk.create({
+        type: 'user',
+        username,
+        password,
+        role,
+        tier: role === 'admin' ? 'admin' : 'new_born',
+        point: role === 'admin' ? 0 : 1,
+        schedule_id: '',
+        schedule_name: '',
+        description: '',
+        start_date: '',
+        end_date: '',
+        batch_id: '',
+        batch_name: '',
+        point_min: 0,
+        point_max: 0,
+        status: '',
+        picked_by: '',
+        released_at: '',
+        created_by: '',
+        created_at: ''
+      });
+
+      if (result.isOk) {
+        showToast('Registrasi berhasil! Silakan login');
+        document.getElementById('toggleLogin').click();
+      }
+    }
+
+    function handleLogout() {
+      currentUser = null;
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('loginForm').reset();
+      document.getElementById('registerForm').reset();
+    }
+
+    function showLoginUI() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('registerScreen').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      renderDashboard();
+    }
+
+    async function handleCreateSchedule(e) {
+      e.preventDefault();
+      const name = document.getElementById('schedName').value;
+      const desc = document.getElementById('schedDesc').value;
+      const start = document.getElementById('schedStart').value;
+      const end = document.getElementById('schedEnd').value;
+      const supportNeeded = parseInt(document.getElementById('schedSupport').value) || 1;
+
+      for (let i = 0; i < supportNeeded; i++) {
+        const scheduleId = 'sched_' + Date.now() + '_' + i;
+        const result = await window.dataSdk.create({
+          type: 'schedule',
+          schedule_id: scheduleId,
+          schedule_name: name,
+          description: desc,
+          start_date: start,
+          end_date: end,
+          status: 'available',
+          batch_id: '',
+          batch_name: '',
+          point_min: 0,
+          point_max: 0,
+          picked_by: '',
+          released_at: '',
+          created_by: currentUser.username,
+          created_at: new Date().toISOString(),
+          username: '',
+          password: '',
+          role: '',
+          tier: '',
+          point: 0
+        });
+
+        if (!result.isOk) {
+          showToast('Error creating schedule');
+          return;
+        }
+      }
+
+      document.getElementById('createScheduleModal').classList.add('hidden');
+      document.getElementById('createScheduleForm').reset();
+      showToast(`${supportNeeded} schedule(s) berhasil dibuat`);
+    }
+
+    function renderDashboard() {
+      const greeting = document.getElementById('userGreeting');
+      const adminPanel = document.getElementById('adminPanel');
+      const container = document.getElementById('schedulesContainer');
+
+      greeting.textContent = `${currentUser.role === 'admin' ? 'Admin' : 'Team'}: ${currentUser.username}`;
+      adminPanel.classList.toggle('hidden', currentUser.role !== 'admin');
+
+      const availableSchedules = allSchedules.filter(s => s.status === 'available');
+      const allPickedSchedules = allSchedules.filter(s => s.status === 'picked');
+      const userPickedSchedules = allSchedules.filter(s => s.status === 'picked' && s.picked_by === currentUser.username);
+      const releasedSchedules = allSchedules.filter(s => s.status === 'released');
+
+      let html = '';
+
+      if (currentUser.role === 'admin') {
+        if (availableSchedules.length > 0) {
+          html += renderGroupedAvailableSchedules(availableSchedules, 'admin');
+        }
+        if (allPickedSchedules.length > 0) {
+          html += renderScheduleSection('Schedules Taken by Team', allPickedSchedules, 'admin');
+        }
+        if (releasedSchedules.length > 0) {
+          html += renderScheduleSection('Released Schedules', releasedSchedules, 'admin');
+        }
+      } else {
+        if (availableSchedules.length > 0) {
+          html += renderGroupedAvailableSchedules(availableSchedules, 'team');
+        }
+        if (userPickedSchedules.length > 0) {
+          html += renderScheduleSection('My Schedules', userPickedSchedules, 'team-owned');
+        }
+        if (releasedSchedules.length > 0) {
+          html += renderScheduleSection('Released Schedules', releasedSchedules, 'team-released');
+        }
+      }
+
+      if (allSchedules.length === 0) {
+        html = '<p class="text-gray-500 text-center py-8">No schedules available</p>';
+      }
+
+      container.innerHTML = html;
+      attachScheduleListeners();
+    }
+
+    function renderGroupedAvailableSchedules(schedules, type) {
+      const scheduleOrder = ['Middle', 'Day', 'Duty', 'Saturday', 'Sunday', 'Public Holiday'];
+      let html = '<div class="mb-8">';
+
+      scheduleOrder.forEach(scheduleName => {
+        const filtered = schedules.filter(s => s.schedule_name === scheduleName);
+        if (filtered.length > 0) {
+          html += renderScheduleSection(`Available Schedules - ${scheduleName}`, filtered, type);
+        }
+      });
+
+      html += '</div>';
+      return html;
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString + 'T00:00:00');
+      const options = { day: '2-digit', month: 'short', year: '2-digit' };
+      return date.toLocaleDateString('en-GB', options).replace(/ /g, ' ');
+    }
+
+    function renderScheduleSection(title, schedules, type) {
+      if (schedules.length === 0) return '';
+
+      let html = `<div class="mb-8">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">${title}</h2>
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">`;
+
+      schedules.forEach(sched => {
+        const statusClass = `status-${sched.status}`;
+        const buttons = getScheduleButtons(sched, type);
+        const formattedStart = formatDate(sched.start_date);
+        const formattedEnd = formatDate(sched.end_date);
+        
+        let batchInfo = '';
+        if (sched.batch_id) {
+          batchInfo = `<p class="text-xs font-semibold text-blue-600 mt-2">📦 Batch: <span class="block">${sched.batch_name}</span> <span class="text-blue-500">${sched.point_min}-${sched.point_max} points</span></p>`;
+        }
+        
+        html += `
+          <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+            <div class="flex justify-between items-start mb-3">
+              <h3 class="font-bold text-lg text-gray-800 flex-1">${sched.schedule_name}</h3>
+              <span class="status-badge ${statusClass}">${sched.status === 'available' ? 'Available' : sched.status === 'picked' ? 'Taken' : 'Released'}</span>
+            </div>
+            <p class="text-sm text-gray-600 mb-4 leading-relaxed">${sched.description}</p>
+            <div class="text-xs text-gray-500 space-y-1 mb-4 pb-4 border-b border-gray-100">
+              <p class="font-medium">📅 ${formattedStart} to ${formattedEnd}</p>
+              ${sched.picked_by ? `<p>👤 Taken by: <span class="font-semibold text-gray-700">${sched.picked_by}</span></p>` : ''}
+              ${batchInfo}
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              ${buttons}
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div></div>';
+      return html;
+    }
+
+    function getScheduleButtons(sched, type) {
+      let buttons = '';
+
+      if (type === 'admin') {
+        if (sched.status === 'available') {
+          buttons += `<button class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded delete-btn" data-id="${sched.__backendId}">Delete</button>`;
+        }
+        if (sched.status === 'picked') {
+          buttons += `<button class="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded release-btn" data-id="${sched.__backendId}">Release</button>`;
+        }
+        if (sched.status === 'released') {
+          buttons += `<button class="text-sm bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded reopen-btn" data-id="${sched.__backendId}">Reopen</button>`;
+        }
+      } else if (type === 'team') {
+        if (sched.status === 'available') {
+          buttons += `<button class="text-sm btn-primary text-white px-3 py-1 rounded pickup-btn" data-id="${sched.__backendId}">Pick Up</button>`;
+        }
+      } else if (type === 'team-owned') {
+        if (sched.status === 'picked') {
+          buttons += `<button class="text-sm bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded reopen-btn" data-id="${sched.__backendId}">Reopen</button>`;
+        }
+      } else if (type === 'team-released') {
+        buttons += `<span class="text-xs text-gray-500 italic">Released by Admin</span>`;
+      }
+
+      return buttons;
+    }
+
+    function attachScheduleListeners() {
+      document.querySelectorAll('.pickup-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const schedId = e.target.dataset.id;
+          const sched = allSchedules.find(s => s.__backendId === schedId);
+          showActionModal('Pick Up Schedule', `Pick up "${sched.schedule_name}" untuk dikerjakan?`, 'pickup', schedId);
+        });
+      });
+
+      document.querySelectorAll('.reopen-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const schedId = e.target.dataset.id;
+          const sched = allSchedules.find(s => s.__backendId === schedId);
+          showActionModal('Reopen', `Reopen "${sched.schedule_name}" ke status Tersedia?`, 'reopen', schedId);
+        });
+      });
+
+      document.querySelectorAll('.release-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const schedId = e.target.dataset.id;
+          const sched = allSchedules.find(s => s.__backendId === schedId);
+          showActionModal('Release', `Release "${sched.schedule_name}"?`, 'release', schedId);
+        });
+      });
+
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const schedId = e.target.dataset.id;
+          const sched = allSchedules.find(s => s.__backendId === schedId);
+          const result = await window.dataSdk.delete(sched);
+          if (result.isOk) {
+            showToast('Schedule dihapus');
+          }
+        });
+      });
+    }
+
+    function showActionModal(title, message, action, schedId) {
+      document.getElementById('actionModalTitle').textContent = title;
+      document.getElementById('actionModalMessage').textContent = message;
+      document.getElementById('actionModal').classList.remove('hidden');
+      pendingAction = { action, schedId };
+    }
+
+    async function handleConfirmAction() {
+      if (!pendingAction) return;
+
+      const sched = allSchedules.find(s => s.__backendId === pendingAction.schedId);
+      if (!sched) return;
+
+      let updated = { ...sched };
+      let message = '';
+
+      if (pendingAction.action === 'pickup') {
+        // Check if schedule is in a batch
+        if (sched.batch_id) {
+          const batchSchedules = allSchedules.filter(s => s.batch_id === sched.batch_id && s.status === 'picked');
+          
+          let totalPointsCurrently = 0;
+          let pickedUsers = [];
+
+          for (const schedInBatch of batchSchedules) {
+            const pickedByUser = allUsers.find(u => u.username === schedInBatch.picked_by);
+            if (pickedByUser) {
+              totalPointsCurrently += getTierPoints(pickedByUser.tier);
+              pickedUsers.push(`${pickedByUser.username} (${getTierPoints(pickedByUser.tier)} pts)`);
+            }
+          }
+
+          // Add this user's points
+          const totalPointsWithUser = totalPointsCurrently + getTierPoints(currentUser.tier);
+
+          // Check if total points meet requirement
+          if (totalPointsWithUser < sched.point_min || totalPointsWithUser > sched.point_max) {
+            let requiredMsg = `❌ Batch "${sched.batch_name}" requirement tidak terpenuhi.\n\n`;
+            requiredMsg += `Required: ${sched.point_min}-${sched.point_max} points\n`;
+            requiredMsg += `Current total: ${totalPointsCurrently} points\n`;
+            requiredMsg += `+ Your tier: ${getTierName(currentUser.tier)} (${getTierPoints(currentUser.tier)} pts)\n`;
+            requiredMsg += `= Total would be: ${totalPointsWithUser} points\n`;
+            if (pickedUsers.length > 0) {
+              requiredMsg += `Already picked: ${pickedUsers.join(', ')}\n`;
+            }
+            showToast(requiredMsg);
+            document.getElementById('actionModal').classList.add('hidden');
+            pendingAction = null;
+            return;
+          }
+        }
+
+        updated.status = 'picked';
+        updated.picked_by = currentUser.username;
+        message = 'Schedule berhasil di-pick up';
+      } else if (pendingAction.action === 'reopen') {
+        updated.status = 'available';
+        updated.picked_by = '';
+        message = 'Schedule berhasil di-reopen';
+      } else if (pendingAction.action === 'release') {
+        updated.status = 'released';
+        updated.released_at = new Date().toISOString();
+        message = 'Schedule berhasil di-release';
+      }
+
+      const result = await window.dataSdk.update(updated);
+      if (result.isOk) {
+        showToast(message);
+        document.getElementById('actionModal').classList.add('hidden');
+        pendingAction = null;
+      }
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMessage').textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 4000);
+    }
+
+    function getTierPoints(tier) {
+      const tiers = {
+        'new_born': 1,
+        'tier_1': 1,
+        'tier_2': 2,
+        'tier_3': 3
+      };
+      return tiers[tier] || 0;
+    }
+
+    function getTierName(tier) {
+      const names = {
+        'new_born': 'New Born',
+        'tier_1': 'Tier 1',
+        'tier_2': 'Tier 2',
+        'tier_3': 'Tier 3',
+        'admin': 'Admin'
+      };
+      return names[tier] || tier;
+    }
+
+    function showCreateBatchModal() {
+      const availableScheds = allSchedules.filter(s => !s.batch_id);
+      const listContainer = document.getElementById('schedulesList');
+      
+      let html = '';
+      if (availableScheds.length === 0) {
+        html = '<p class="text-gray-500 text-sm">Tidak ada schedule yang tersedia</p>';
+      } else {
+        html = availableScheds.map(sched => `
+          <label class="checkbox-item cursor-pointer hover:bg-white p-2 rounded transition">
+            <input type="checkbox" class="sched-checkbox" value="${sched.__backendId}">
+            <div class="flex-1">
+              <span class="font-medium text-gray-800">${sched.schedule_name}</span>
+              <span class="text-gray-600 text-xs ml-2">${formatDate(sched.start_date)}</span>
+              <p class="text-xs text-gray-500 mt-1">${sched.description}</p>
+            </div>
+          </label>
+        `).join('');
+      }
+      
+      listContainer.innerHTML = html;
+      document.getElementById('createBatchModal').classList.remove('hidden');
+    }
+
+    async function handleCreateBatch(e) {
+      e.preventDefault();
+      
+      const batchName = document.getElementById('batchName').value;
+      const pointMin = parseInt(document.getElementById('batchPointMin').value);
+      const pointMax = parseInt(document.getElementById('batchPointMax').value);
+      
+      if (pointMin > pointMax) {
+        showToast('Min point tidak boleh lebih besar dari max point');
+        return;
+      }
+
+      const selectedCheckboxes = document.querySelectorAll('.sched-checkbox:checked');
+      if (selectedCheckboxes.length === 0) {
+        showToast('Pilih minimal 1 schedule');
+        return;
+      }
+
+      const batchId = 'batch_' + Date.now();
+
+      for (const checkbox of selectedCheckboxes) {
+        const schedId = checkbox.value;
+        const sched = allSchedules.find(s => s.__backendId === schedId);
+        
+        const updated = { ...sched };
+        updated.batch_id = batchId;
+        updated.batch_name = batchName;
+        updated.point_min = pointMin;
+        updated.point_max = pointMax;
+
+        const result = await window.dataSdk.update(updated);
+        if (!result.isOk) {
+          showToast('Error updating schedule');
+          return;
+        }
+      }
+
+      document.getElementById('createBatchModal').classList.add('hidden');
+      document.getElementById('createBatchForm').reset();
+      showToast(`✅ Batch "${batchName}" (${pointMin}-${pointMax} pts) berhasil dibuat dengan ${selectedCheckboxes.length} schedule`);
+    }
+
+    function showManageTiersModal() {
+      const teamUsers = allUsers.filter(u => u.role === 'team');
+      const listContainer = document.getElementById('tiersList');
+
+      if (teamUsers.length === 0) {
+        listContainer.innerHTML = '<p class="text-gray-500 text-sm">Tidak ada team member</p>';
+      } else {
+        listContainer.innerHTML = teamUsers.map(user => `
+          <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div class="flex justify-between items-center mb-3">
+              <div>
+                <h3 class="font-semibold text-gray-800">${user.username}</h3>
+                <p class="text-sm text-gray-600">${getTierName(user.tier)} - ${getTierPoints(user.tier)} point(s)</p>
+              </div>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <button class="tier-btn text-xs px-3 py-1 rounded border border-gray-300 hover:bg-blue-50 hover:border-blue-300 transition" data-user-id="${user.__backendId}" data-tier="new_born">New Born</button>
+              <button class="tier-btn text-xs px-3 py-1 rounded border border-gray-300 hover:bg-blue-50 hover:border-blue-300 transition" data-user-id="${user.__backendId}" data-tier="tier_1">Tier 1</button>
+              <button class="tier-btn text-xs px-3 py-1 rounded border border-gray-300 hover:bg-blue-50 hover:border-blue-300 transition" data-user-id="${user.__backendId}" data-tier="tier_2">Tier 2</button>
+              <button class="tier-btn text-xs px-3 py-1 rounded border border-gray-300 hover:bg-blue-50 hover:border-blue-300 transition" data-user-id="${user.__backendId}" data-tier="tier_3">Tier 3</button>
+            </div>
+          </div>
+        `).join('');
+
+        document.querySelectorAll('.tier-btn').forEach(btn => {
+          btn.addEventListener('click', handleChangeTier);
+        });
+      }
+
+      document.getElementById('manageTiersModal').classList.remove('hidden');
+    }
+
+    async function handleChangeTier(e) {
+      e.preventDefault();
+      const userId = e.target.dataset.userId;
+      const newTier = e.target.dataset.tier;
+      const user = allUsers.find(u => u.__backendId === userId);
+
+      if (!user) return;
+
+      const updated = { ...user };
+      updated.tier = newTier;
+      updated.point = getTierPoints(newTier);
+
+      const result = await window.dataSdk.update(updated);
+      if (result.isOk) {
+        showToast(`✅ ${user.username} diubah ke ${getTierName(newTier)} (${getTierPoints(newTier)} pts)`);
+        showManageTiersModal();
+      }
+    }
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9da2408b257e008f',t:'MTc3MzE0NTAwMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

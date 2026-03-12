@@ -1,0 +1,3071 @@
+<!doctype html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Power Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Library untuk Export Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Library untuk Export PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Library untuk Chart Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #app { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: #f8fafc;
+    }
+
+    /* Custom Styles & Animations */
+    .gradient-header {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px -5px rgba(15, 23, 42, 0.08);
+      border-color: #cbd5e1;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      transition: all 0.3s ease;
+      border: none;
+      box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px -2px rgba(37, 99, 235, 0.4);
+    }
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .status-available { background: #d1fae5; color: #065f46; }
+    .status-picked { background: #fef08a; color: #78350f; }
+    .status-released { background: #e0e7ff; color: #3730a3; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50;
+    }
+    .modal-content {
+      background: white; border-radius: 12px; padding: 2rem;
+      max-width: 500px; width: 90%;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-large { max-width: 700px; }
+    .modal-xl { max-width: 1000px; }
+    
+    /* Form Elements */
+    input, textarea, select {
+      border: 1px solid #d1d5db; border-radius: 6px; padding: 0.75rem;
+      font-size: 0.95rem; transition: all 0.3s ease; background: #ffffff;
+      width: 100%;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none; border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); background: #f8faff;
+    }
+    .input-sm { padding: 0.5rem; font-size: 0.875rem; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: white; padding: 1rem 1.5rem; border-radius: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      animation: slideIn 0.3s ease; z-index: 60; max-width: 400px;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Dark Mode */
+    body.dark-mode { background: #0f172a; color: #e2e8f0; }
+    body.dark-mode .gradient-header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-bottom-color: rgba(255, 255, 255, 0.05); }
+    body.dark-mode .card-hover { background: #1e293b; border-color: #334155; }
+    body.dark-mode .card-hover:hover { border-color: #475569; box-shadow: 0 12px 24px -5px rgba(0, 0, 0, 0.4); }
+    body.dark-mode .modal-content { background: #1e293b; border-color: rgba(255, 255, 255, 0.1); }
+    body.dark-mode input, body.dark-mode textarea, body.dark-mode select {
+      background: #0f172a; border-color: #334155; color: #e2e8f0;
+    }
+    body.dark-mode input:focus, body.dark-mode textarea:focus, body.dark-mode select:focus {
+      border-color: #2563eb; background: #1e293b;
+    }
+    body.dark-mode .toast { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+    body.dark-mode .text-gray-800 { color: #f1f5f9; }
+    body.dark-mode .text-gray-700 { color: #e2e8f0; }
+    body.dark-mode .text-gray-600 { color: #cbd5e1; }
+    body.dark-mode .text-gray-500 { color: #94a3b8; }
+    body.dark-mode .bg-gray-50 { background: #0f172a; border-color:#334155; }
+    body.dark-mode .border-gray-100, body.dark-mode .border-gray-200 { border-color: #334155; }
+    body.dark-mode .bg-gray-300 { background: #334155; color: #e2e8f0; }
+    body.dark-mode .bg-gray-300:hover { background: #475569; }
+
+    .theme-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; border: none; border-radius: 8px;
+      background: rgba(255, 255, 255, 0.15); color: white;
+      cursor: pointer; transition: all 0.3s ease; font-size: 1.2rem;
+    }
+    .theme-toggle:hover { background: rgba(255, 255, 255, 0.25); }
+
+    .checkbox-item { display: flex; align-items: center; gap: 0.5rem; }
+    .checkbox-item input { width: auto; margin: 0; }
+    
+    /* Grid View Specific Table Styles */
+    .grid-table { border-spacing: 0; min-w-full; user-select: none; }
+    .grid-table th, .grid-table td { 
+      border: 1px solid #cbd5e1; 
+      text-align: center; 
+      padding: 0.4rem; 
+      font-size: 0.85rem;
+    }
+    body.dark-mode .grid-table th, body.dark-mode .grid-table td { border-color: #475569; }
+    
+    .sticky-col { position: sticky; left: 0; z-index: 10; background: white; font-weight: bold; }
+    body.dark-mode .sticky-col { background: #0f172a; }
+
+    /* Custom Colors for Sat/Sun/Holiday */
+    .bg-saturday { background-color: #d946ef; color: white; border-color: #c026d3; }
+    .bg-sunday { background-color: #ef4444; color: white; border-color: #dc2626; }
+    .bg-holiday { background-color: #d1d5db; color: #1f2937; border-color: #9ca3af; }
+    body.dark-mode .bg-saturday { background-color: #c026d3; border-color: #a21caf; }
+    body.dark-mode .bg-sunday { background-color: #dc2626; border-color: #b91c1c; }
+    body.dark-mode .bg-holiday { background-color: #475569; color: #f8fafc; border-color: #334155; }
+
+    /* Drag Selection Styles */
+    .cursor-cell { cursor: crosshair; }
+    .drag-selected {
+        background-color: #bfdbfe !important;
+        border: 2px solid #3b82f6 !important;
+        color: #1e3a8a !important;
+        opacity: 1 !important;
+    }
+    body.dark-mode .drag-selected {
+        background-color: #1e3a8a !important;
+        border-color: #60a5fa !important;
+        color: #dbeafe !important;
+    }
+
+    /* Inline Edit Styling */
+    .inline-select {
+        background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 4px; padding: 2px; font-weight: bold; color: #166534; cursor: pointer; outline: none; width: 100%; box-sizing: border-box;
+    }
+    body.dark-mode .inline-select { background-color: #14532d; border-color: #4ade80; color: #dcfce7; }
+  </style>
+</head>
+<body>
+  <!-- KUNCI LAYOUT: overflow-hidden pada root agar keseluruhan web tidak ter-scroll -->
+  <div id="app" class="h-full w-full overflow-hidden relative">
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden toast z-[100]">
+      <p id="toastMessage" class="font-medium text-gray-800 dark:text-white"></p>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="h-full w-full flex flex-col items-center justify-center p-4 relative overflow-y-auto">
+      <div class="w-full max-w-md">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 fade-in border border-gray-100 dark:border-slate-700">
+          <h1 class="text-4xl font-bold text-center mb-2 text-gray-800 dark:text-white">Power Management</h1>
+          <p class="text-center text-gray-600 dark:text-gray-400 mb-8 text-sm font-medium">Manage your team's schedule efficiently</p>
+          <form id="loginForm" class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Username</label> 
+              <input type="text" id="loginUsername" placeholder="Enter username" required>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Password</label> 
+              <input type="password" id="loginPassword" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg mt-6"> Login </button>
+          </form>
+          <div class="border-t border-gray-200 dark:border-slate-700 my-6"></div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-4 bg-gray-50 dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
+            <p class="font-semibold mb-2 text-gray-800 dark:text-gray-200">📋 Demo Accounts:</p>
+            <p><strong>Admin:</strong> admin / admin123 (atau sbg <b>Komeng</b> / pass123)</p>
+            <p><strong>Team:</strong> Akbar, Aldi, dll / pass123</p>
+          </div>
+          <button id="toggleRegister" class="w-full text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold text-sm"> Don't have an account? Register here </button>
+        </div>
+      </div>
+      <div class="absolute bottom-6 text-xs font-medium text-gray-400 dark:text-gray-500">v.1.2603.9</div>
+    </div>
+
+    <!-- Register Screen -->
+    <div id="registerScreen" class="hidden h-full w-full flex flex-col items-center justify-center p-4 relative overflow-y-auto">
+      <div class="w-full max-w-md">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 fade-in border border-gray-100 dark:border-slate-700">
+          <h1 class="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-white">Create New Account</h1>
+          <form id="registerForm" class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Username</label> 
+              <input type="text" id="regUsername" placeholder="Choose username" required>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Password</label> 
+              <input type="password" id="regPassword" placeholder="Create password" required>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Role</label> 
+              <select id="regRole" required> 
+                <option value="">-- Select Role --</option> 
+                <option value="team">Team Member</option> 
+              </select>
+            </div>
+            <button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg mt-6"> Register </button>
+          </form>
+          <button id="toggleLogin" class="w-full text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold text-sm mt-6"> Already have an account? Login here </button>
+        </div>
+      </div>
+      <div class="absolute bottom-6 text-xs font-medium text-gray-400 dark:text-gray-500">v.1.2603.9</div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="hidden h-full w-full flex flex-col overflow-hidden">
+      <!-- Header -->
+      <header class="gradient-header text-white shadow-lg z-20 flex-shrink-0">
+        <div class="max-w-full mx-auto px-6 py-5 flex justify-between items-center">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Power Management</h1>
+            <p id="userGreeting" class="text-sm opacity-80 font-medium"></p>
+          </div>
+          <div class="flex gap-4 items-center">
+            <!-- Version History Button -->
+            <button id="versionHistoryBtn" class="theme-toggle" title="Version History">
+              📜
+            </button>
+
+            <!-- Notification Bell -->
+            <div class="relative">
+              <button id="notifToggle" class="theme-toggle relative" title="Notifications">
+                🔔
+                <span id="notifBadge" class="absolute -top-1 -right-1 bg-red-500 text-white font-bold rounded-full text-[10px] w-5 h-5 hidden items-center justify-center border border-white dark:border-slate-800 shadow-sm">0</span>
+              </button>
+              <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 z-50 overflow-hidden transform origin-top-right transition-all">
+                <div class="p-3 border-b border-gray-100 dark:border-slate-700 font-bold text-gray-800 dark:text-white bg-gray-50 dark:bg-slate-900/50 flex justify-between items-center">
+                  <span>Notifikasi</span>
+                  <button id="markAllReadBtn" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-normal">Tandai sudah dibaca</button>
+                </div>
+                <div id="notifList" class="max-h-80 overflow-y-auto bg-white dark:bg-slate-800">
+                  <!-- Notifications here -->
+                </div>
+              </div>
+            </div>
+
+            <button id="themeToggle" class="theme-toggle" title="Toggle dark mode"> 🌙 </button> 
+            <button id="logoutBtn" class="bg-white bg-opacity-15 hover:bg-opacity-25 text-white font-semibold py-2 px-5 rounded-lg transition duration-200 border border-white border-opacity-20 hidden sm:block"> Logout </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <nav class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-6 shadow-sm overflow-x-auto flex-shrink-0 z-10 relative">
+        <div class="flex gap-6 min-w-max">
+          <button id="tabBoardBtn" class="py-4 px-2 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold transition-colors">🎯 Schedule Arrangement</button>
+          <button id="tabGridBtn" class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-bold transition-colors">📅 Jobsheet</button>
+          <button id="tabProjectsBtn" class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-bold transition-colors">🚀 Projects</button>
+          <button id="tabPartnersBtn" class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-bold transition-colors">🏢 Partners</button>
+          <button id="tabAnalyticsBtn" class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-bold transition-colors flex items-center gap-2">📈 Analytics</button>
+        </div>
+      </nav>
+
+      <!-- Main Content Container -->
+      <main class="flex-grow p-6 overflow-y-auto relative">
+        
+        <!-- ================= BOARD VIEW ================= -->
+        <div id="boardViewTab" class="max-w-7xl mx-auto fade-in">
+          
+          <!-- Team Dashboard Summary -->
+          <div id="teamSummaryPanel" class="hidden mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 border border-blue-100 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">📊 Ringkasan Jadwal Anda</h2>
+            <div id="teamSummaryContent" class="flex flex-wrap gap-4">
+               <!-- Diisi via JS -->
+            </div>
+          </div>
+
+          <!-- Admin Panel -->
+          <div id="adminPanel" class="hidden mb-8">
+            <div class="bg-white dark:bg-slate-900 rounded-xl shadow-md p-6 mb-6 border border-gray-100 dark:border-slate-700">
+              <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Admin Panel</h2>
+              <div class="flex gap-3 flex-wrap">
+                <button id="createScheduleBtn" class="btn-primary text-white font-bold py-2 px-6 rounded-lg"> 📅 Create Schedule </button> 
+                <button id="createBatchBtn" class="btn-primary text-white font-bold py-2 px-6 rounded-lg"> 📦 Create Batch </button> 
+                <button id="manageTiersBtn" class="btn-primary text-white font-bold py-2 px-6 rounded-lg"> 👥 Manage Tiers </button>
+                <button id="manageHolidaysBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition"> 🏖️ Public Holidays </button>
+                <button id="manageAgendaBtn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition"> 📋 Management Agenda </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Schedules Container -->
+          <div id="schedulesContainer" class="space-y-4 pb-8">
+            <p class="text-gray-500 text-center py-8">Memuat data...</p>
+          </div>
+        </div>
+
+        <!-- ================= GRID VIEW ================= -->
+        <div id="gridViewTab" class="hidden h-full flex flex-col fade-in">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex-shrink-0">
+            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+              <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pilih Periode</label>
+                <select id="periodSelector" class="w-full sm:w-auto shadow-sm min-w-[200px]"></select>
+              </div>
+              <div class="flex-grow">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cari Anggota</label>
+                <input type="text" id="searchGridUser" placeholder="Ketik nama..." class="w-full sm:w-auto shadow-sm">
+              </div>
+            </div>
+            
+            <div class="flex gap-2 w-full md:w-auto flex-wrap">
+              <button id="createPeriodBtn" class="btn-primary text-white font-bold py-2 px-4 rounded-lg hidden whitespace-nowrap"> + Periode </button>
+              <button id="exportExcelBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition whitespace-nowrap"> 📥 Export to Excel </button>
+              <button id="exportPdfBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition whitespace-nowrap"> 📄 Export to PDF </button>
+            </div>
+          </div>
+
+          <!-- Peringatan Drag & Drop Edit untuk Admin -->
+          <div id="inlineEditHint" class="hidden mb-4 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-slate-800 p-3 rounded-lg border border-blue-100 dark:border-slate-700 flex items-center gap-2 flex-shrink-0">
+             💡 <b>Tips Cepat (Admin):</b> Klik dan geser (drag) menyamping pada kotak jadwal yang kosong (atau buatan manual) untuk mengatur banyak tanggal sekaligus!
+          </div>
+
+          <!-- Dynamic Grid Container -->
+          <div class="bg-white dark:bg-slate-900 rounded-xl shadow border border-gray-200 dark:border-slate-700 overflow-x-auto flex-grow relative" style="min-height: 400px;">
+            <div id="gridContainer" class="min-w-max p-4">
+               <!-- Tabel akan dirender oleh Javascript disini -->
+               <p class="text-gray-500 italic p-4">Pilih periode untuk melihat jadwal...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PROJECTS VIEW ================= -->
+        <div id="projectsTab" class="hidden h-full flex flex-col fade-in max-w-7xl mx-auto">
+          <div class="flex justify-between items-center mb-6 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex-shrink-0">
+            <div class="flex-grow max-w-md">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cari Project</label>
+              <input type="text" id="searchProject" placeholder="Ketik nama project, ID, atau hotel..." class="w-full shadow-sm">
+            </div>
+            <button id="createProjectBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition whitespace-nowrap ml-4 hidden"> + Add Project </button>
+          </div>
+
+          <div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden flex-grow flex flex-col">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm text-left">
+                <thead class="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-slate-800 dark:text-gray-400 border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th class="px-4 py-3 font-semibold">ID</th>
+                    <th class="px-4 py-3 font-semibold">Project Name & Hotel</th>
+                    <th class="px-4 py-3 font-semibold">PIC</th>
+                    <th class="px-4 py-3 font-semibold">Timeline</th>
+                    <th class="px-4 py-3 font-semibold">Status & Type</th>
+                    <th class="px-4 py-3 text-right font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="projectsTableBody" class="divide-y divide-gray-200 dark:divide-slate-700 text-gray-700 dark:text-gray-300">
+                  <!-- Diisi via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PARTNERS VIEW ================= -->
+        <div id="partnersTab" class="hidden h-full flex flex-col fade-in max-w-7xl mx-auto">
+          <div class="flex justify-between items-center mb-6 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex-shrink-0">
+            <div class="flex-grow max-w-md">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cari Partner</label>
+              <input type="text" id="searchPartner" placeholder="Ketik nama partner atau area..." class="w-full shadow-sm">
+            </div>
+            <button id="createPartnerBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition whitespace-nowrap ml-4 hidden"> + Add Partner </button>
+          </div>
+
+          <div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden flex-grow flex flex-col">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm text-left">
+                <thead class="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-slate-800 dark:text-gray-400 border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th class="px-4 py-3 font-semibold">ID</th>
+                    <th class="px-4 py-3 font-semibold">Name</th>
+                    <th class="px-4 py-3 font-semibold">Type & Star</th>
+                    <th class="px-4 py-3 font-semibold">Area</th>
+                    <th class="px-4 py-3 font-semibold">Status</th>
+                    <th class="px-4 py-3 font-semibold">Sys Version</th>
+                    <th class="px-4 py-3 text-right font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="partnersTableBody" class="divide-y divide-gray-200 dark:divide-slate-700 text-gray-700 dark:text-gray-300">
+                  <!-- Diisi via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= ANALYTICS VIEW ================= -->
+        <div id="analyticsTab" class="hidden max-w-7xl mx-auto fade-in h-full flex flex-col gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-shrink-0">
+            
+            <!-- Leaderboard / Top Performer -->
+            <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4 border-b border-gray-100 dark:border-slate-700 pb-2">🏆 Top Performer Tim</h3>
+              <div id="topPerformerList" class="space-y-4 max-h-64 overflow-y-auto pr-2">
+                 <!-- Diisi JS -->
+              </div>
+            </div>
+
+            <!-- Task Distribution Chart -->
+            <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 lg:col-span-2">
+               <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4 border-b border-gray-100 dark:border-slate-700 pb-2">📊 Distribusi Beban Kerja (Periode Berjalan)</h3>
+               <div class="relative h-[250px] w-full flex justify-center">
+                 <canvas id="taskDistributionChart"></canvas>
+               </div>
+            </div>
+          </div>
+
+          <!-- Monthly Recap Table -->
+          <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 flex-grow mb-6">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-slate-700 pb-2">
+              <h3 class="text-lg font-bold text-gray-800 dark:text-white">📝 Rekap Kehadiran & Tugas (Seluruh Data)</h3>
+              <input type="text" id="searchAnalyticsUser" placeholder="Cari Anggota..." class="text-sm py-1 px-3 w-48 shadow-sm">
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm text-left">
+                <thead class="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-slate-800 dark:text-gray-400">
+                  <tr>
+                    <th class="px-4 py-3">Anggota</th>
+                    <th class="px-4 py-3">Total Poin</th>
+                    <th class="px-4 py-3">Jadwal Shift (D/MD/DT)</th>
+                    <th class="px-4 py-3">Proyek/Implementasi</th>
+                    <th class="px-4 py-3">Maintenance</th>
+                    <th class="px-4 py-3 text-red-500">Cuti / Sakit</th>
+                  </tr>
+                </thead>
+                <tbody id="recapTableBody" class="divide-y divide-gray-200 dark:divide-slate-700 text-gray-700 dark:text-gray-300">
+                  <!-- Diisi via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+        
+      </main>
+      
+      <!-- Dashboard Footer -->
+      <footer class="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 py-3 mt-auto flex-shrink-0 z-10">
+        <p class="text-center text-xs font-medium text-gray-500 dark:text-gray-400">v.1.2603.9</p>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modals Collection -->
+
+  <!-- Bulk Edit Modal -->
+  <div id="bulkEditModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Edit Rentang Jadwal</h2>
+      <p id="bulkEditDesc" class="text-sm text-blue-600 dark:text-blue-400 font-medium mb-6 bg-blue-50 dark:bg-slate-800 p-2 rounded"></p>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Pilih Tugas / Agenda</label>
+          <select id="bulkEditSelect" class="w-full">
+            <option value="">- Pilih Tipe -</option>
+            <option value="clear" class="text-red-600 font-bold">🗑️ Clear / Kosongkan Area Terpilih</option>
+            <optgroup label="Shift">
+               <option value="sched_Day">Day (D)</option>
+               <option value="sched_Middle">Middle (MD)</option>
+               <option value="sched_Duty">Duty (DT)</option>
+            </optgroup>
+            <optgroup label="Agenda at Partner">
+               <option value="agd_I.TLK">Impl. TLK (I.TLK)</option>
+               <option value="agd_I.TCK">Impl. TCK (I.TCK)</option>
+               <option value="agd_I.TLD">Impl. TLD (I.TLD)</option>
+               <option value="agd_I.TLN">Impl. TLN (I.TLN)</option>
+               <option value="agd_M.TLK">Maint. TLK (M.TLK)</option>
+               <option value="agd_M.TCK">Maint. TCK (M.TCK)</option>
+               <option value="agd_M.TLD">Maint. TLD (M.TLD)</option>
+               <option value="agd_M.TLN">Maint. TLN (M.TLN)</option>
+            </optgroup>
+            <optgroup label="Agenda at Office">
+               <option value="agd_MS">Maint. Seamless (MS)</option>
+               <option value="agd_OKR">Team OKR (OKR)</option>
+               <option value="agd_TM">Team Ticket Master (TM)</option>
+            </optgroup>
+            <optgroup label="Absensi">
+               <option value="agd_C">Cuti (C)</option>
+               <option value="agd_I">Izin (I)</option>
+               <option value="agd_S">Sakit (S)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="flex gap-2 mt-6">
+          <button id="bulkEditSaveBtn" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Apply ke Semua </button> 
+          <button id="bulkEditCancelBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Batal </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Form Modal -->
+  <div id="projectModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content modal-xl">
+      <h2 id="projectModalTitle" class="text-2xl font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-slate-700 pb-3">Project Details</h2>
+      <form id="projectForm" class="space-y-6">
+        <input type="hidden" id="prj_internal_id">
+        
+        <!-- General Info -->
+        <div>
+            <h3 class="font-bold text-sm text-indigo-600 dark:text-indigo-400 mb-3 uppercase tracking-wider">📄 General Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">ID (Primary Key)</label>
+                    <input type="text" id="prj_id" class="input-sm" required placeholder="e.g. PRJ-001">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">CNC Project ID</label>
+                    <input type="text" id="prj_cnc_id" class="input-sm" placeholder="e.g. CNC-2026-01">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Hotel Name</label>
+                    <input type="text" id="prj_hotel" class="input-sm" required placeholder="Name of Partner/Hotel">
+                </div>
+                <div class="space-y-1 lg:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Project Name</label>
+                    <input type="text" id="prj_name" class="input-sm" required placeholder="Title of the project">
+                </div>
+                <div class="space-y-1 lg:col-span-3">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Project Information</label>
+                    <textarea id="prj_info" rows="2" class="input-sm text-sm" placeholder="Additional details..."></textarea>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Type</label>
+                    <select id="prj_type" class="input-sm">
+                        <option value="Implementation">Implementation</option>
+                        <option value="Upgrade">Upgrade</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Retraining">Retraining</option>
+                        <option value="Remote Installation">Remote Installation</option>
+                        <option value="On Line Training">On Line Training</option>
+                        <option value="In House Training">In House Training</option>
+                        <option value="Special Request">Special Request</option>
+                        <option value="Others">Others</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Status</label>
+                    <select id="prj_status" class="input-sm">
+                        <option value="Planned">Planned</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Canceled">Canceled</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resource & Timeline -->
+        <div>
+            <h3 class="font-bold text-sm text-indigo-600 dark:text-indigo-400 mb-3 uppercase tracking-wider">⏱️ Resource & Timeline</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">PIC</label>
+                    <input type="text" id="prj_pic" class="input-sm" placeholder="Person in Charge">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Req PIC</label>
+                    <input type="number" id="prj_req_pic" class="input-sm" placeholder="Required PIC count">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Assignment</label>
+                    <input type="text" id="prj_assignment" class="input-sm" placeholder="Assignment details">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Start Date</label>
+                    <input type="date" id="prj_start" class="input-sm">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">End Date</label>
+                    <input type="date" id="prj_end" class="input-sm">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Total Day(s)</label>
+                    <input type="number" id="prj_total_days" class="input-sm" placeholder="Duration in days">
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI & Points -->
+        <div>
+            <h3 class="font-bold text-sm text-indigo-600 dark:text-indigo-400 mb-3 uppercase tracking-wider">🎯 KPI & Points</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Point Ach</label>
+                    <input type="number" id="prj_point_ach" class="input-sm" placeholder="Points Achieved">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Point Req</label>
+                    <input type="number" id="prj_point_req" class="input-sm" placeholder="Points Required">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">% Point</label>
+                    <input type="text" id="prj_pct_point" class="input-sm" placeholder="e.g. 80%">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">KPI.2</label>
+                    <input type="text" id="prj_kpi2" class="input-sm" placeholder="KPI.2 metric">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">KPI.2 Officer</label>
+                    <input type="text" id="prj_kpi2_officer" class="input-sm" placeholder="Assigned Officer">
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporting & Handover -->
+        <div>
+            <h3 class="font-bold text-sm text-indigo-600 dark:text-indigo-400 mb-3 uppercase tracking-wider">📝 Reporting & Handover</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Handover Official Report</label>
+                    <input type="date" id="prj_handover_report" class="input-sm">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Handover Day(s)</label>
+                    <input type="number" id="prj_handover_days" class="input-sm" placeholder="Days taken">
+                </div>
+                <div class="hidden lg:block"></div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Check Official Report</label>
+                    <input type="date" id="prj_check_report" class="input-sm">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Check Day(s)</label>
+                    <input type="number" id="prj_check_days" class="input-sm" placeholder="Days taken">
+                </div>
+            </div>
+        </div>
+
+        <!-- System Tracking -->
+        <div>
+            <h3 class="font-bold text-sm text-indigo-600 dark:text-indigo-400 mb-3 uppercase tracking-wider">📡 S1/S2/S3 Tracking</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">S1: Estimation KPI.2</label>
+                    <input type="text" id="prj_s1_est" class="input-sm" placeholder="Estimation">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">S1: Over Day(s)</label>
+                    <input type="number" id="prj_s1_over" class="input-sm" placeholder="Over days">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">S1: Count of Email(s) Sent</label>
+                    <input type="number" id="prj_s1_email" class="input-sm" placeholder="0">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">S2: Email Sent</label>
+                    <input type="text" id="prj_s2_email" class="input-sm" placeholder="Sent details">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">S3: Email Sent</label>
+                    <input type="text" id="prj_s3_email" class="input-sm" placeholder="Sent details">
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex gap-3 mt-8 pt-4 border-t border-gray-200 dark:border-slate-700">
+          <button type="submit" id="saveProjectBtn" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg hidden"> Save Project </button> 
+          <button type="button" id="closeProjectBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Close </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Partner Form Modal -->
+  <div id="partnerModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content modal-xl">
+      <h2 id="partnerModalTitle" class="text-2xl font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-slate-700 pb-3">Partner Details</h2>
+      <form id="partnerForm" class="space-y-4">
+        <input type="hidden" id="p_internal_id">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Basic Info -->
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">ID (Primary Key)</label>
+                <input type="text" id="p_id" class="input-sm" required placeholder="e.g. P-001">
+            </div>
+            <div class="space-y-1 lg:col-span-2">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Name</label>
+                <input type="text" id="p_name" class="input-sm" required placeholder="Partner Name">
+            </div>
+            
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Type</label>
+                <select id="p_type" class="input-sm" required>
+                    <option value="Hotel">Hotel</option>
+                    <option value="Villa">Villa</option>
+                    <option value="Restaurant">Restaurant</option>
+                    <option value="Convention">Convention</option>
+                    <option value="Education">Education</option>
+                    <option value="Head Quarter">Head Quarter</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Star</label>
+                <select id="p_star" class="input-sm">
+                    <option value="1">1 Star</option>
+                    <option value="2">2 Star</option>
+                    <option value="3">3 Star</option>
+                    <option value="4">4 Star</option>
+                    <option value="5">5 Star</option>
+                    <option value="Unrated">Unrated</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Group</label>
+                <input type="text" id="p_group" class="input-sm" placeholder="Management Group">
+            </div>
+
+            <!-- Capacities & System -->
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Room</label>
+                <input type="number" id="p_room" class="input-sm" placeholder="Number of Rooms">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Outlet</label>
+                <input type="number" id="p_outlet" class="input-sm" placeholder="Number of Outlets">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Status</label>
+                <select id="p_status" class="input-sm">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Suspended">Suspended</option>
+                </select>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">System Live</label>
+                <input type="date" id="p_system_live" class="input-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">System Version</label>
+                <select id="p_system_version" class="input-sm">
+                    <option value="Cloud">Cloud</option>
+                    <option value="Desktop">Desktop</option>
+                    <option value="Lite">Lite</option>
+                    <option value="Express">Express</option>
+                    <option value="ECOS">ECOS</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Implementation Type</label>
+                <select id="p_implementation_type" class="input-sm">
+                    <option value="Cloud">Cloud</option>
+                    <option value="On-Premise">On-Premise</option>
+                    <option value="Hybrid">Hybrid</option>
+                </select>
+            </div>
+
+            <!-- Location -->
+            <div class="space-y-1 lg:col-span-3">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Address</label>
+                <textarea id="p_address" rows="2" class="input-sm text-sm"></textarea>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Area</label>
+                <input type="text" id="p_area" class="input-sm" placeholder="City/Region">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Sub Area</label>
+                <input type="text" id="p_sub_area" class="input-sm" placeholder="District">
+            </div>
+            
+            <div class="col-span-1 hidden lg:block"></div> <!-- Spacer -->
+
+            <!-- Activities -->
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Last Visit</label>
+                <input type="date" id="p_last_visit" class="input-sm">
+            </div>
+            <div class="space-y-1 lg:col-span-2">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Last Visit Type</label>
+                <select id="p_last_visit_type" class="input-sm">
+                    <option value="Implementation">Implementation</option>
+                    <option value="Upgrade">Upgrade</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Retraining">Retraining</option>
+                    <option value="Others">Others</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Last Project</label>
+                <input type="date" id="p_last_project" class="input-sm">
+            </div>
+            <div class="space-y-1 lg:col-span-2">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Last Project Type</label>
+                <select id="p_last_project_type" class="input-sm">
+                    <option value="Implementation">Implementation</option>
+                    <option value="Upgrade">Upgrade</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Retraining">Retraining</option>
+                    <option value="Remote Installation">Remote Installation</option>
+                    <option value="On Line Training">On Line Training</option>
+                    <option value="In House Training">In House Training</option>
+                    <option value="Special Request">Special Request</option>
+                    <option value="Others">Others</option>
+                </select>
+            </div>
+
+            <!-- Contacts -->
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Subm. Salutation</label>
+                <select id="p_subm_salut" class="input-sm">
+                    <option value="Mr.">Mr.</option>
+                    <option value="Mrs.">Mrs.</option>
+                    <option value="Ms.">Ms.</option>
+                    <option value="Bpk.">Bpk.</option>
+                    <option value="Ibu">Ibu</option>
+                </select>
+            </div>
+            <div class="space-y-1 lg:col-span-2">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Submission Name</label>
+                <input type="text" id="p_subm_name" class="input-sm" placeholder="Contact Person Name">
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">GM Email</label>
+                <input type="email" id="p_gm_email" class="input-sm" placeholder="gm@...">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">FC / CA Email</label>
+                <input type="email" id="p_fc_email" class="input-sm" placeholder="fc@...">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">IT Email</label>
+                <input type="email" id="p_it_email" class="input-sm" placeholder="it@...">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">HRD Email</label>
+                <input type="email" id="p_hrd_email" class="input-sm" placeholder="hrd@...">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Allowance Maint.</label>
+                <input type="number" id="p_allowance" class="input-sm" placeholder="0">
+            </div>
+        </div>
+        
+        <div class="flex gap-3 mt-8 pt-4 border-t border-gray-200 dark:border-slate-700">
+          <button type="submit" id="savePartnerBtn" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg hidden"> Save Partner </button> 
+          <button type="button" id="closePartnerBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Close </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create/Edit Schedule Modal -->
+  <div id="scheduleModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content">
+      <h2 id="scheduleModalTitle" class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Create Schedule</h2>
+      <form id="scheduleForm" class="space-y-4">
+        <input type="hidden" id="schedEditId">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Schedule Name</label> 
+          <select id="schedName" required> 
+            <option value="">-- Select Schedule Type --</option> 
+            <option value="Day">Day</option> 
+            <option value="Middle">Middle</option> 
+            <option value="Duty">Duty</option> 
+            <option value="Saturday">Saturday</option> 
+            <option value="Sunday">Sunday</option> 
+            <option value="Public Holiday">Public Holiday</option> 
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</label> 
+          <textarea id="schedDesc" placeholder="Full description..." rows="3"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Start Date</label> 
+          <input type="date" id="schedStart" required>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">End Date</label> 
+          <input type="date" id="schedEnd" required>
+        </div>
+        <div id="schedSupportContainer">
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Support Needed (Slots)</label> 
+          <select id="schedSupport"> 
+            <option value="1">1 Person</option> 
+            <option value="2">2 People</option> 
+            <option value="3">3 People</option> 
+            <option value="4">4 People</option> 
+          </select>
+        </div>
+        <div class="flex gap-2 mt-6">
+          <button type="submit" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Save </button> 
+          <button type="button" id="cancelSchedBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Cancel </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Period Modal -->
+  <div id="createPeriodModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Buat Periode Baru</h2>
+      <form id="createPeriodForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nama Periode</label> 
+          <input type="text" id="periodName" placeholder="Contoh: Februari 2026 - Maret 2026" required>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Start Date</label> 
+            <input type="date" id="periodStart" required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">End Date</label> 
+            <input type="date" id="periodEnd" required>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-6">
+          <button type="submit" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Buat </button> 
+          <button type="button" id="cancelPeriodBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Batal </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Batch Modal -->
+  <div id="createBatchModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content modal-large">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Create Batch</h2>
+      <form id="createBatchForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Batch Name</label> 
+          <input type="text" id="batchName" placeholder="e.g. Middle Batch A" required>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Min Points Required</label> 
+            <input type="number" id="batchPointMin" placeholder="3" required min="1" max="12">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Max Points Allowed</label> 
+            <input type="number" id="batchPointMax" placeholder="6" required min="1" max="12">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Select Schedules (Available)</label>
+          <div id="schedulesList" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 max-h-48 overflow-y-auto space-y-3 bg-gray-50 dark:bg-slate-800">
+            <p class="text-gray-500 text-sm">Loading available schedules...</p>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-6">
+          <button type="submit" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Create Batch </button> 
+          <button type="button" id="cancelBatchBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Cancel </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manage Tiers Modal -->
+  <div id="manageTiersModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content modal-large">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Manage User Tiers</h2>
+      <input type="text" id="searchTiersUser" placeholder="Cari Nama Anggota..." class="mb-4 w-full input-sm">
+      <div id="tiersList" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+        <p class="text-gray-500 text-sm">Loading users...</p>
+      </div>
+      <div class="flex gap-2 mt-6">
+        <button id="closeTiersBtn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Close </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Holidays Modal -->
+  <div id="manageHolidaysModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content modal-large">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Manage Public Holidays</h2>
+      <form id="addHolidayForm" class="flex flex-col sm:flex-row gap-2 mb-6">
+        <input type="date" id="holidayDate" required class="flex-1 input-sm">
+        <input type="text" id="holidayDesc" placeholder="Keterangan (opsional)" class="flex-1 input-sm">
+        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">Add</button>
+      </form>
+      <div id="holidaysList" class="space-y-2 max-h-64 overflow-y-auto mb-6 pr-2">
+        <!-- List of holidays will be rendered here -->
+      </div>
+      <div class="flex gap-2">
+        <button id="closeHolidaysBtn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Close </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Management Agenda Modal -->
+  <div id="manageAgendaModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content modal-large">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Management Agenda Tim</h2>
+      <form id="addAgendaForm" class="space-y-3 mb-6 bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <select id="agendaUser" required class="flex-1 input-sm"></select>
+          <select id="agendaType" required class="flex-1 input-sm">
+            <optgroup label="Agenda at Partner">
+               <option value="I.TLK">Impl. TLK (I.TLK)</option>
+               <option value="I.TCK">Impl. TCK (I.TCK)</option>
+               <option value="I.TLD">Impl. TLD (I.TLD)</option>
+               <option value="I.TLN">Impl. TLN (I.TLN)</option>
+               <option value="M.TLK">Maint. TLK (M.TLK)</option>
+               <option value="M.TCK">Maint. TCK (M.TCK)</option>
+               <option value="M.TLD">Maint. TLD (M.TLD)</option>
+               <option value="M.TLN">Maint. TLN (M.TLN)</option>
+            </optgroup>
+            <optgroup label="Agenda at Office">
+               <option value="MS">Maint. Seamless (MS)</option>
+               <option value="OKR">Team OKR (OKR)</option>
+               <option value="TM">Team Ticket Master (TM)</option>
+            </optgroup>
+            <optgroup label="Absensi">
+               <option value="C">Cuti (C)</option>
+               <option value="I">Izin (I)</option>
+               <option value="S">Sakit (S)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <input type="date" id="agendaStart" required class="flex-1 input-sm" title="Start Date">
+          <input type="date" id="agendaEnd" required class="flex-1 input-sm" title="End Date">
+        </div>
+        <input type="text" id="agendaDesc" placeholder="Keterangan..." class="w-full input-sm">
+        <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg">Tambahkan Agenda</button>
+      </form>
+      <div id="agendaList" class="space-y-2 max-h-64 overflow-y-auto mb-6 pr-2">
+        <!-- List of agenda will be rendered here -->
+      </div>
+      <div class="flex gap-2">
+        <button id="closeAgendaBtn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Close </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Modal (Pickup/Release/ReOpen/Delete) -->
+  <div id="actionModal" class="hidden modal-overlay fade-in z-[100]">
+    <div class="modal-content">
+      <h2 id="actionModalTitle" class="text-2xl font-bold text-gray-800 dark:text-white mb-4"></h2>
+      <p id="actionModalMessage" class="text-gray-600 dark:text-gray-300 mb-6 text-sm leading-relaxed whitespace-pre-wrap"></p>
+      <div class="flex gap-2">
+        <button id="confirmActionBtn" class="flex-1 btn-primary text-white font-bold py-2 px-4 rounded-lg"> Confirm </button> 
+        <button id="cancelActionBtn" class="flex-1 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400"> Cancel </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Version History Modal -->
+  <div id="versionHistoryModal" class="hidden modal-overlay fade-in z-[110]">
+    <div class="modal-content modal-large">
+      <div class="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-slate-700 pb-3">
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">📜 Version History</h2>
+        <button id="closeVersionHistoryBtn" class="text-gray-500 hover:text-gray-800 dark:hover:text-white text-2xl font-bold leading-none">&times;</button>
+      </div>
+      
+      <div class="space-y-8 max-h-[60vh] overflow-y-auto pr-4 text-sm text-gray-700 dark:text-gray-300">
+        
+        <!-- v.1.2603.9 (Current) -->
+        <div class="relative pl-6 border-l-2 border-blue-500">
+            <div class="absolute w-3 h-3 bg-blue-500 rounded-full -left-[7px] top-1.5 border-2 border-white dark:border-slate-900"></div>
+            <h3 class="font-bold text-lg text-blue-600 dark:text-blue-400">v.1.2603.9 (Terbaru)</h3>
+            <p class="text-xs text-gray-500 mb-3 font-medium">Maret 2026</p>
+            <ul class="list-disc list-inside space-y-1 ml-2">
+                <li><b>Rebranding:</b> Perubahan nama sistem menjadi <i>Power Management System</i>.</li>
+                <li><b>Modul Baru - Projects:</b> Manajemen Proyek komprehensif dengan 27 field detail (KPI, SLA Email, Handover, dll).</li>
+                <li><b>Modul Baru - Partners:</b> Manajemen Klien/Hotel dengan 25 field informasi.</li>
+                <li><b>Validasi Primary Key:</b> Perlindungan anti-duplikat pada ID Project dan ID Partner.</li>
+                <li><b>Peningkatan Jobsheet:</b> Fitur Drag-and-Drop selection untuk <i>Bulk Edit</i>, dan kategorisasi menu <i>Inline Edit</i> yang lebih presisi.</li>
+            </ul>
+        </div>
+
+        <!-- v.1.2603.2 -->
+        <div class="relative pl-6 border-l-2 border-gray-300 dark:border-slate-700">
+            <div class="absolute w-3 h-3 bg-gray-300 dark:bg-slate-600 rounded-full -left-[7px] top-1.5 border-2 border-white dark:border-slate-900"></div>
+            <h3 class="font-bold text-lg text-gray-800 dark:text-white">v.1.2603.2</h3>
+            <p class="text-xs text-gray-500 mb-3 font-medium">Maret 2026</p>
+            <ul class="list-disc list-inside space-y-1 ml-2">
+                <li><b>Pencegahan Bentrok:</b> Validasi cerdas (Schedule Overlap & Cuti) saat mem-pickup jadwal.</li>
+                <li><b>Manajemen Cuti & Agenda:</b> Integrasi Cuti, Sakit, dan Izin ke Jobsheet.</li>
+                <li><b>Export:</b> Fitur Export ke file Excel (.xlsx) dan PDF (Format Landscape otomatis).</li>
+                <li><b>Analytics Tab:</b> Penambahan Top Performer (Leaderboard), Grafik Donat (Chart.js), dan Rekap Total Poin bulanan.</li>
+                <li><b>Sistem Notifikasi:</b> Lonceng notifikasi real-time untuk penugasan jadwal.</li>
+            </ul>
+        </div>
+
+        <!-- v.1.2603.1 -->
+        <div class="relative pl-6 border-l-2 border-gray-300 dark:border-slate-700">
+            <div class="absolute w-3 h-3 bg-gray-300 dark:bg-slate-600 rounded-full -left-[7px] top-1.5 border-2 border-white dark:border-slate-900"></div>
+            <h3 class="font-bold text-lg text-gray-800 dark:text-white">v.1.2603.1</h3>
+            <p class="text-xs text-gray-500 mb-3 font-medium">Maret 2026</p>
+            <ul class="list-disc list-inside space-y-1 ml-2">
+                <li><b>Board & Jobsheet:</b> Perilisan awal Grid Kalender Jobsheet interaktif.</li>
+                <li><b>Public Holiday:</b> Admin dapat menandai hari libur nasional yang otomatis merender warna abu-abu di kalender.</li>
+                <li><b>Logika Skip Sunday:</b> Aturan jadwal Duty (DT) otomatis melewatkan hari minggu (Sunday).</li>
+                <li><b>Sistem Role & Tier:</b> Manajemen poin otomatis berdasarkan hierarki New Born, Tier 1, 2, dan 3.</li>
+            </ul>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- In-Memory Data Store Simulation ---
+    const generateId = (prefix) => prefix + '_' + Math.random().toString(36).substr(2, 9);
+
+    let allUsers = [
+      { __backendId: 'u1', type: 'user', username: 'admin', password: 'admin123', role: 'admin', tier: 'admin', point: 0 },
+      { __backendId: 'u_Akbar', type: 'user', username: 'Akbar', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Aldi', type: 'user', username: 'Aldi', password: 'pass123', role: 'team', tier: 'tier_2', point: 2 },
+      { __backendId: 'u_Andreas', type: 'user', username: 'Andreas', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Apip', type: 'user', username: 'Apip', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Apri', type: 'user', username: 'Apri', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Arbi', type: 'user', username: 'Arbi', password: 'pass123', role: 'team', tier: 'new_born', point: 1 },
+      { __backendId: 'u_Aris', type: 'user', username: 'Aris', password: 'pass123', role: 'team', tier: 'tier_2', point: 2 },
+      { __backendId: 'u_Basir', type: 'user', username: 'Basir', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Bowo', type: 'user', username: 'Bowo', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Danang', type: 'user', username: 'Danang', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Dhani', type: 'user', username: 'Dhani', password: 'pass123', role: 'team', tier: 'new_born', point: 1 },
+      { __backendId: 'u_Dhika', type: 'user', username: 'Dhika', password: 'pass123', role: 'team', tier: 'new_born', point: 1 },
+      { __backendId: 'u_Fachri', type: 'user', username: 'Fachri', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Farhan', type: 'user', username: 'Farhan', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Hanip', type: 'user', username: 'Hanip', password: 'pass123', role: 'team', tier: 'new_born', point: 1 },
+      { __backendId: 'u_Hasbi', type: 'user', username: 'Hasbi', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Ichsan', type: 'user', username: 'Ichsan', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Ichwan', type: 'user', username: 'Ichwan', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Ilham', type: 'user', username: 'Ilham', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Imam', type: 'user', username: 'Imam', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Indra', type: 'user', username: 'Indra', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Iqhtiar', type: 'user', username: 'Iqhtiar', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Ivan', type: 'user', username: 'Ivan', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Jaja', type: 'user', username: 'Jaja', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Komeng', type: 'user', username: 'Komeng', password: 'pass123', role: 'admin', tier: 'admin', point: 0 },
+      { __backendId: 'u_Lifi', type: 'user', username: 'Lifi', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Mamat', type: 'user', username: 'Mamat', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Mulya', type: 'user', username: 'Mulya', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Naufal', type: 'user', username: 'Naufal', password: 'pass123', role: 'team', tier: 'tier_2', point: 2 },
+      { __backendId: 'u_Prad', type: 'user', username: 'Prad', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Rafly', type: 'user', username: 'Rafly', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Rama', type: 'user', username: 'Rama', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Rey', type: 'user', username: 'Rey', password: 'pass123', role: 'team', tier: 'new_born', point: 1 },
+      { __backendId: 'u_Ridho', type: 'user', username: 'Ridho', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Ridwan', type: 'user', username: 'Ridwan', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Rizky', type: 'user', username: 'Rizky', password: 'pass123', role: 'team', tier: 'tier_2', point: 2 },
+      { __backendId: 'u_Robi', type: 'user', username: 'Robi', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Sahrul', type: 'user', username: 'Sahrul', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Sodik', type: 'user', username: 'Sodik', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Vincent', type: 'user', username: 'Vincent', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Wahyudi', type: 'user', username: 'Wahyudi', password: 'pass123', role: 'team', tier: 'tier_1', point: 1 },
+      { __backendId: 'u_Widi', type: 'user', username: 'Widi', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Yosa', type: 'user', username: 'Yosa', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 },
+      { __backendId: 'u_Yudi', type: 'user', username: 'Yudi', password: 'pass123', role: 'team', tier: 'tier_3', point: 3 }
+    ];
+    let allSchedules = [];
+    let allPeriods = [
+      { id: 'p1', name: 'Februari 2026 - Maret 2026', start: '2026-02-21', end: '2026-03-20' }
+    ];
+    let allHolidays = [
+      { id: 'h1', date: '2026-03-19', desc: 'Contoh Hari Libur Nasional' }
+    ];
+    let allAgendas = [
+      { id: 'a1', username: 'Akbar', type: 'C', start_date: '2026-03-10', end_date: '2026-03-12', desc: 'Liburan Keluarga' }
+    ];
+    
+    // NEW: Partners Data
+    let allPartners = [
+      { 
+        id: 'P-001', name: 'Grand Royal Resort', system_live: '2023-05-15', system_version: 'Cloud', star: '5', room: '250', outlet: '4', 
+        type: 'Resort', implementation_type: 'Cloud', status: 'Active', group: 'Royal Group', address: 'Jl. Pantai Kuta No. 12, Bali', 
+        area: 'Bali', sub_area: 'Kuta', last_visit: '2024-02-10', last_visit_type: 'Maintenance', last_project: '2023-11-20', 
+        last_project_type: 'Implementation', submission_salutation: 'Mr.', submission_name: 'Budi Santoso', gm_email: 'gm@grandroyal.com', 
+        fc_email: 'fc@grandroyal.com', it_email: 'it@grandroyal.com', hrd_email: 'hrd@grandroyal.com', allowance_maintenance: '1500000' 
+      },
+      { 
+        id: 'P-002', name: 'City Center Hotel', system_live: '2021-11-20', system_version: 'Desktop', star: '4', room: '120', outlet: '2', 
+        type: 'Hotel', implementation_type: 'On-Premise', status: 'Active', group: 'City Hospitality', address: 'Jl. Sudirman Kav 45, Jakarta', 
+        area: 'Jakarta', sub_area: 'Pusat', last_visit: '2023-12-05', last_visit_type: 'Maintenance', last_project: '2022-06-15', 
+        last_project_type: 'Upgrade', submission_salutation: 'Mrs.', submission_name: 'Siti Aminah', gm_email: 'gm@citycenter.com', 
+        fc_email: 'finance@citycenter.com', it_email: 'it.support@citycenter.com', hrd_email: 'hr@citycenter.com', allowance_maintenance: '0' 
+      },
+      { 
+        id: 'P-003', name: 'Mountain View Villa', system_live: '2024-01-05', system_version: 'Lite', star: '3', room: '45', outlet: '1', 
+        type: 'Villa', implementation_type: 'Cloud', status: 'Active', group: 'Indie', address: 'Jl. Raya Puncak Km 88, Bogor', 
+        area: 'Jawa Barat', sub_area: 'Bogor', last_visit: '2024-01-05', last_visit_type: 'Implementation', last_project: '2024-01-05', 
+        last_project_type: 'Implementation', submission_salutation: 'Bpk.', submission_name: 'Agus Wijaya', gm_email: 'manager@mountainview.com', 
+        fc_email: 'admin@mountainview.com', it_email: 'tech@mountainview.com', hrd_email: '-', allowance_maintenance: '500000' 
+      }
+    ];
+
+    // NEW: Projects Data
+    let allProjects = [
+        {
+            id: 'PRJ-2026-001', cnc_id: 'CNC-2601', hotel: 'Grand Royal Resort', name: 'Cloud Migration Phase 1',
+            pic: 'Akbar', req_pic: '2', assignment: 'Technical Lead', info: 'Migrating legacy desktop to cloud.',
+            start: '2026-04-01', end: '2026-04-10', total_days: '10', type: 'Implementation', status: 'Planned',
+            handover_report: '', handover_days: '', kpi2: '85%', point_ach: '0', point_req: '100', pct_point: '0%',
+            check_report: '', check_days: '', kpi2_officer: 'Komeng', s1_est: '', s1_over: '', s1_email: '0',
+            s2_email: '', s3_email: ''
+        },
+        {
+            id: 'PRJ-2026-002', cnc_id: 'CNC-2602', hotel: 'City Center Hotel', name: 'Server Upgrades',
+            pic: 'Aldi', req_pic: '1', assignment: 'Support', info: 'Updating local server racks.',
+            start: '2026-03-05', end: '2026-03-08', total_days: '4', type: 'Upgrade', status: 'In Progress',
+            handover_report: '', handover_days: '', kpi2: '90%', point_ach: '40', point_req: '50', pct_point: '80%',
+            check_report: '', check_days: '', kpi2_officer: 'Komeng', s1_est: '2026-03-09', s1_over: '0', s1_email: '1',
+            s2_email: '-', s3_email: '-'
+        }
+    ];
+
+    let notifications = []; 
+    let currentUser = null;
+    let pendingAction = null;
+    let currentTab = 'board';
+    let chartInstance = null; 
+
+    // Drag variables
+    let isDragging = false;
+    let dragUser = null;
+    let dragStartD = null;
+    let dragEndD = null;
+
+    // Initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      setupEventListeners();
+      checkTheme();
+      
+      if (allSchedules.length === 0) {
+        allSchedules.push({
+          __backendId: generateId('sched'), type: 'schedule', schedule_name: 'Middle', description: 'Sample Schedule', 
+          start_date: '2026-03-15', end_date: '2026-03-20', status: 'available',
+          batch_id: '', batch_name: '', point_min: 0, point_max: 0, picked_by: '', released_at: '', created_by: 'admin'
+        });
+      }
+    });
+
+    function setupEventListeners() {
+      // Helper function for safer event listener binding
+      const addEvent = (id, event, handler) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(event, handler);
+      };
+
+      // Theme
+      addEvent('themeToggle', 'click', toggleTheme);
+      
+      // Auth Navigation
+      addEvent('toggleRegister', 'click', toggleScreen('registerScreen'));
+      addEvent('toggleLogin', 'click', toggleScreen('loginScreen'));
+      
+      // Forms
+      addEvent('loginForm', 'submit', handleLogin);
+      addEvent('registerForm', 'submit', handleRegister);
+      addEvent('logoutBtn', 'click', handleLogout);
+
+      // Version History
+      addEvent('versionHistoryBtn', 'click', () => {
+         const modal = document.getElementById('versionHistoryModal');
+         if(modal) modal.classList.remove('hidden');
+      });
+      addEvent('closeVersionHistoryBtn', 'click', () => {
+         const modal = document.getElementById('versionHistoryModal');
+         if(modal) modal.classList.add('hidden');
+      });
+
+      // Tabs
+      addEvent('tabBoardBtn', 'click', () => switchTab('board'));
+      addEvent('tabGridBtn', 'click', () => switchTab('grid'));
+      addEvent('tabProjectsBtn', 'click', () => switchTab('projects'));
+      addEvent('tabPartnersBtn', 'click', () => switchTab('partners'));
+      addEvent('tabAnalyticsBtn', 'click', () => switchTab('analytics'));
+
+      // Notifications
+      addEvent('notifToggle', 'click', (e) => {
+        e.stopPropagation();
+        const dropdown = document.getElementById('notifDropdown');
+        if(dropdown) dropdown.classList.toggle('hidden');
+      });
+      document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('notifDropdown');
+        const toggle = document.getElementById('notifToggle');
+        if (dropdown && toggle && !e.target.closest('#notifDropdown') && !e.target.closest('#notifToggle')) {
+          dropdown.classList.add('hidden');
+        }
+      });
+      addEvent('markAllReadBtn', 'click', () => {
+         notifications.forEach(n => { if(n.target === currentUser.username || n.target === 'all_admin') n.read = true; });
+         renderNotifications();
+      });
+
+      // Period Management
+      addEvent('createPeriodBtn', 'click', () => {
+        const modal = document.getElementById('createPeriodModal');
+        if(modal) modal.classList.remove('hidden');
+      });
+      addEvent('cancelPeriodBtn', 'click', () => {
+        const modal = document.getElementById('createPeriodModal');
+        if(modal) modal.classList.add('hidden');
+      });
+      addEvent('createPeriodForm', 'submit', handleCreatePeriod);
+      addEvent('periodSelector', 'change', renderGridView);
+
+      // Admin Modals
+      addEvent('createScheduleBtn', 'click', () => showScheduleModal('create'));
+      addEvent('cancelSchedBtn', 'click', () => {
+          const modal = document.getElementById('scheduleModal');
+          if(modal) modal.classList.add('hidden');
+      });
+      addEvent('scheduleForm', 'submit', handleSaveSchedule);
+
+      addEvent('createBatchBtn', 'click', showCreateBatchModal);
+      addEvent('cancelBatchBtn', 'click', () => {
+          const modal = document.getElementById('createBatchModal');
+          if(modal) modal.classList.add('hidden');
+      });
+      addEvent('createBatchForm', 'submit', handleCreateBatch);
+
+      addEvent('manageTiersBtn', 'click', showManageTiersModal);
+      addEvent('closeTiersBtn', 'click', () => {
+          const modal = document.getElementById('manageTiersModal');
+          if(modal) modal.classList.add('hidden');
+      });
+      // We do not add 'input' listener to searchTiersUser here directly
+      // because the element is dynamically created/focused later
+
+      addEvent('manageHolidaysBtn', 'click', showManageHolidaysModal);
+      addEvent('closeHolidaysBtn', 'click', () => {
+          const modal = document.getElementById('manageHolidaysModal');
+          if(modal) modal.classList.add('hidden');
+      });
+      addEvent('addHolidayForm', 'submit', handleAddHoliday);
+
+      addEvent('manageAgendaBtn', 'click', showManageAgendaModal);
+      addEvent('closeAgendaBtn', 'click', () => {
+          const modal = document.getElementById('manageAgendaModal');
+          if(modal) modal.classList.add('hidden');
+      });
+      addEvent('addAgendaForm', 'submit', handleAddAgenda);
+
+      // Partners Events
+      addEvent('createPartnerBtn', 'click', () => showPartnerModal('create'));
+      addEvent('closePartnerBtn', 'click', () => {
+          const modal = document.getElementById('partnerModal');
+          if(modal) modal.classList.add('hidden');
+      });
+      addEvent('partnerForm', 'submit', handleSavePartner);
+      addEvent('searchPartner', 'input', renderPartners);
+
+      // Projects Events
+      addEvent('createProjectBtn', 'click', () => showProjectModal('create'));
+      addEvent('closeProjectBtn', 'click', () => {
+          const modal = document.getElementById('projectModal');
+          if(modal) modal.classList.add('hidden');
+      });
+      addEvent('projectForm', 'submit', handleSaveProject);
+      addEvent('searchProject', 'input', renderProjects);
+
+      // Grid Search & Export
+      addEvent('searchGridUser', 'input', renderGridView);
+      addEvent('exportExcelBtn', 'click', exportToExcel);
+      addEvent('exportPdfBtn', 'click', exportToPDF);
+      addEvent('searchAnalyticsUser', 'input', renderAnalyticsTable);
+
+      // Action Modal
+      addEvent('cancelActionBtn', 'click', () => {
+        const modal = document.getElementById('actionModal');
+        if(modal) modal.classList.add('hidden');
+        pendingAction = null;
+      });
+      addEvent('confirmActionBtn', 'click', handleConfirmAction);
+
+      // Bulk Edit Modal actions
+      addEvent('bulkEditCancelBtn', 'click', () => {
+          const modal = document.getElementById('bulkEditModal');
+          if(modal) modal.classList.add('hidden');
+          clearGridSelection();
+      });
+      addEvent('bulkEditSaveBtn', 'click', saveBulkEdit);
+    }
+
+    // --- Period Management ---
+    function handleCreatePeriod(e) {
+      e.preventDefault();
+      const name = document.getElementById('periodName').value;
+      const start = document.getElementById('periodStart').value;
+      const end = document.getElementById('periodEnd').value;
+
+      if(new Date(start) > new Date(end)){
+        showToast('❌ Start Date tidak boleh melewati End Date');
+        return;
+      }
+
+      const newPeriod = { id: generateId('p'), name, start, end };
+      allPeriods.push(newPeriod);
+      
+      document.getElementById('createPeriodModal').classList.add('hidden');
+      document.getElementById('createPeriodForm').reset();
+      showToast('✅ Periode berhasil dibuat');
+      
+      populatePeriodSelector(newPeriod.id);
+      renderGridView();
+    }
+
+    // --- Core Logic Helpers ---
+    function isOverlapping(startA, endA, startB, endB) {
+      return startA <= endB && startB <= endA;
+    }
+
+    // --- Notifications Logic ---
+    function pushNotification(target, text) {
+      notifications.unshift({ id: generateId('notif'), target: target, text: text, read: false, time: new Date() });
+      if(currentUser) renderNotifications();
+    }
+
+    function renderNotifications() {
+      if(!currentUser) return;
+      const myNotifs = notifications.filter(n => n.target === currentUser.username || (currentUser.role === 'admin' && n.target === 'all_admin'));
+      const unreadCount = myNotifs.filter(n => !n.read).length;
+      const badge = document.getElementById('notifBadge');
+      if(unreadCount > 0) {
+        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+      const listContainer = document.getElementById('notifList');
+      if(myNotifs.length === 0) {
+         listContainer.innerHTML = '<p class="text-sm text-gray-500 p-4 text-center italic">Belum ada notifikasi.</p>';
+      } else {
+         listContainer.innerHTML = myNotifs.map(n => `
+           <div class="p-3 border-b border-gray-50 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700 transition ${n.read ? 'opacity-60' : 'bg-blue-50/30 dark:bg-blue-900/10'}">
+             <p class="text-sm text-gray-800 dark:text-gray-200 ${n.read ? '' : 'font-semibold'}">${n.text}</p>
+             <span class="text-[10px] text-gray-400 mt-1 block">${n.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${n.time.toLocaleDateString()}</span>
+           </div>
+         `).join('');
+      }
+    }
+
+    function populatePeriodSelector(selectId = null) {
+      const selector = document.getElementById('periodSelector');
+      if (!selector) return;
+      selector.innerHTML = '';
+      if(allPeriods.length === 0){
+        selector.innerHTML = '<option value="">-- Belum ada periode --</option>';
+        return;
+      }
+      allPeriods.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        selector.appendChild(opt);
+      });
+      if(selectId) selector.value = selectId;
+    }
+
+    function showScheduleModal(mode, schedId = null) {
+      const modalTitle = document.getElementById('scheduleModalTitle');
+      const form = document.getElementById('scheduleForm');
+      const supportContainer = document.getElementById('schedSupportContainer');
+      const idInput = document.getElementById('schedEditId');
+      
+      if(form) form.reset();
+
+      if (mode === 'create') {
+        if(modalTitle) modalTitle.textContent = "Create New Schedule";
+        if(supportContainer) supportContainer.classList.remove('hidden');
+        if(idInput) idInput.value = '';
+      } else if (mode === 'edit' && schedId) {
+        if(modalTitle) modalTitle.textContent = "Edit Schedule";
+        if(supportContainer) supportContainer.classList.add('hidden');
+        if(idInput) idInput.value = schedId;
+
+        const sched = allSchedules.find(s => s.__backendId === schedId);
+        if (sched) {
+          const nameInput = document.getElementById('schedName');
+          const descInput = document.getElementById('schedDesc');
+          const startInput = document.getElementById('schedStart');
+          const endInput = document.getElementById('schedEnd');
+          
+          if(nameInput) nameInput.value = sched.schedule_name;
+          if(descInput) descInput.value = sched.description;
+          if(startInput) startInput.value = sched.start_date;
+          if(endInput) endInput.value = sched.end_date;
+        }
+      }
+      
+      const modal = document.getElementById('scheduleModal');
+      if(modal) modal.classList.remove('hidden');
+    }
+
+    function handleSaveSchedule(e) {
+      e.preventDefault();
+      const schedId = document.getElementById('schedEditId').value;
+      const name = document.getElementById('schedName').value;
+      const desc = document.getElementById('schedDesc').value;
+      const start = document.getElementById('schedStart').value;
+      const end = document.getElementById('schedEnd').value;
+
+      if (new Date(start) > new Date(end)) {
+         showToast('❌ Start Date tidak boleh melewati End Date');
+         return;
+      }
+
+      if (schedId) {
+        const schedIndex = allSchedules.findIndex(s => s.__backendId === schedId);
+        if (schedIndex > -1) {
+          allSchedules[schedIndex].schedule_name = name;
+          allSchedules[schedIndex].description = desc;
+          allSchedules[schedIndex].start_date = start;
+          allSchedules[schedIndex].end_date = end;
+          showToast('✅ Schedule berhasil diperbarui');
+        }
+      } else {
+        const supportNeeded = parseInt(document.getElementById('schedSupport').value) || 1;
+        for (let i = 0; i < supportNeeded; i++) {
+          allSchedules.push({
+            __backendId: generateId('sched'),
+            type: 'schedule', schedule_name: name, description: desc,
+            start_date: start, end_date: end, status: 'available',
+            batch_id: '', batch_name: '', point_min: 0, point_max: 0,
+            picked_by: '', released_at: '', created_by: currentUser.username
+          });
+        }
+        showToast(`✅ ${supportNeeded} schedule(s) berhasil dibuat`);
+      }
+
+      document.getElementById('scheduleModal').classList.add('hidden');
+      renderDashboard();
+    }
+
+    function showCreateBatchModal() {
+      const availableScheds = allSchedules.filter(s => s.status === 'available' && !s.batch_id);
+      const listContainer = document.getElementById('schedulesList');
+      
+      if (availableScheds.length === 0) {
+        listContainer.innerHTML = '<p class="text-gray-500 text-sm">Tidak ada schedule available yang belum masuk batch.</p>';
+      } else {
+        listContainer.innerHTML = availableScheds.map(sched => `
+          <label class="checkbox-item cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-slate-600 transition block">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="sched-checkbox mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${sched.__backendId}">
+              <div class="flex-1">
+                <div class="flex justify-between">
+                  <span class="font-bold text-gray-800 dark:text-gray-200">${sched.schedule_name}</span>
+                  <span class="text-blue-600 dark:text-blue-400 text-xs font-medium bg-blue-100 dark:bg-slate-700 px-2 py-0.5 rounded">${formatDate(sched.start_date)}</span>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">${sched.description || 'No description'}</p>
+              </div>
+            </div>
+          </label>
+        `).join('');
+      }
+      document.getElementById('createBatchModal').classList.remove('hidden');
+    }
+
+    function handleCreateBatch(e) {
+      e.preventDefault();
+      const batchName = document.getElementById('batchName').value;
+      const pointMin = parseInt(document.getElementById('batchPointMin').value);
+      const pointMax = parseInt(document.getElementById('batchPointMax').value);
+      
+      if (pointMin > pointMax) {
+        showToast('❌ Min point tidak boleh lebih besar dari max point');
+        return;
+      }
+
+      const selectedCheckboxes = document.querySelectorAll('.sched-checkbox:checked');
+      if (selectedCheckboxes.length === 0) {
+        showToast('❌ Pilih minimal 1 schedule');
+        return;
+      }
+
+      const batchId = generateId('batch');
+      selectedCheckboxes.forEach(checkbox => {
+        const schedIndex = allSchedules.findIndex(s => s.__backendId === checkbox.value);
+        if (schedIndex > -1) {
+          allSchedules[schedIndex].batch_id = batchId;
+          allSchedules[schedIndex].batch_name = batchName;
+          allSchedules[schedIndex].point_min = pointMin;
+          allSchedules[schedIndex].point_max = pointMax;
+        }
+      });
+
+      document.getElementById('createBatchModal').classList.add('hidden');
+      document.getElementById('createBatchForm').reset();
+      renderDashboard();
+      showToast(`✅ Batch "${batchName}" berhasil dibuat dengan ${selectedCheckboxes.length} jadwal`);
+    }
+
+    function showManageTiersModal() {
+      let teamUsers = allUsers.filter(u => u.role === 'team');
+      const searchInput = document.getElementById('searchTiersUser');
+      const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+      
+      if (searchTerm) teamUsers = teamUsers.filter(u => u.username.toLowerCase().includes(searchTerm));
+
+      const listContainer = document.getElementById('tiersList');
+      if (teamUsers.length === 0) {
+        listContainer.innerHTML = '<p class="text-gray-500 text-sm">Tidak ada user ditemukan</p>';
+      } else {
+        listContainer.innerHTML = teamUsers.map(user => `
+          <div class="border border-gray-200 dark:border-slate-700 rounded-xl p-5 bg-gray-50 dark:bg-slate-800">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <h3 class="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">👤 ${user.username}</h3>
+                <p class="text-sm font-medium text-blue-600 dark:text-blue-400 mt-1 bg-blue-100 dark:bg-slate-700 inline-block px-2 py-1 rounded">Current: ${getTierName(user.tier)} (${getTierPoints(user.tier)} pts)</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <button class="tier-btn text-xs font-semibold px-3 py-2 rounded-lg border ${user.tier === 'new_born' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white dark:bg-slate-900 border-gray-300 text-gray-700 hover:bg-blue-50 transition'}" data-user-id="${user.__backendId}" data-tier="new_born">New Born</button>
+              <button class="tier-btn text-xs font-semibold px-3 py-2 rounded-lg border ${user.tier === 'tier_1' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white dark:bg-slate-900 border-gray-300 text-gray-700 hover:bg-blue-50 transition'}" data-user-id="${user.__backendId}" data-tier="tier_1">Tier 1</button>
+              <button class="tier-btn text-xs font-semibold px-3 py-2 rounded-lg border ${user.tier === 'tier_2' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white dark:bg-slate-900 border-gray-300 text-gray-700 hover:bg-blue-50 transition'}" data-user-id="${user.__backendId}" data-tier="tier_2">Tier 2</button>
+              <button class="tier-btn text-xs font-semibold px-3 py-2 rounded-lg border ${user.tier === 'tier_3' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white dark:bg-slate-900 border-gray-300 text-gray-700 hover:bg-blue-50 transition'}" data-user-id="${user.__backendId}" data-tier="tier_3">Tier 3</button>
+            </div>
+          </div>
+        `).join('');
+        
+        document.querySelectorAll('.tier-btn').forEach(btn => btn.addEventListener('click', handleChangeTier));
+      }
+      
+      const modal = document.getElementById('manageTiersModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        if (searchInput) {
+            // Ensure search listener is safely bound exactly once
+            searchInput.removeEventListener('input', showManageTiersModal);
+            searchInput.addEventListener('input', showManageTiersModal);
+            setTimeout(() => searchInput.focus(), 50);
+        }
+      }
+    }
+
+    function handleChangeTier(e) {
+      e.preventDefault();
+      const userId = e.target.dataset.userId;
+      const newTier = e.target.dataset.tier;
+      const userIndex = allUsers.findIndex(u => u.__backendId === userId);
+      if (userIndex > -1) {
+        allUsers[userIndex].tier = newTier;
+        allUsers[userIndex].point = getTierPoints(newTier);
+        showToast(`✅ ${allUsers[userIndex].username} diubah ke ${getTierName(newTier)}`);
+        showManageTiersModal();
+      }
+    }
+
+    function isHoliday(dateObj) {
+      const yyyy = dateObj.getFullYear();
+      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const dd = String(dateObj.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      return allHolidays.some(h => h.date === dateStr);
+    }
+
+    function showManageHolidaysModal() {
+      const listContainer = document.getElementById('holidaysList');
+      if (allHolidays.length === 0) {
+        listContainer.innerHTML = '<p class="text-gray-500 text-sm">Belum ada hari libur nasional yang diset.</p>';
+      } else {
+        const sortedHolidays = [...allHolidays].sort((a,b) => new Date(a.date) - new Date(b.date));
+        listContainer.innerHTML = sortedHolidays.map(h => `
+          <div class="flex justify-between items-center bg-gray-50 dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700">
+            <div>
+              <p class="font-bold text-gray-800 dark:text-gray-200">${formatDate(h.date)}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${h.desc || 'Libur Nasional'}</p>
+            </div>
+            <button class="text-red-500 hover:text-red-700 font-bold text-lg px-2 del-holiday-btn" data-id="${h.id}">×</button>
+          </div>
+        `).join('');
+        document.querySelectorAll('.del-holiday-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            allHolidays = allHolidays.filter(h => h.id !== e.target.dataset.id);
+            showManageHolidaysModal();
+            if(currentTab === 'grid') renderGridView();
+            showToast('🗑️ Hari libur dihapus');
+          });
+        });
+      }
+      document.getElementById('manageHolidaysModal').classList.remove('hidden');
+    }
+
+    function handleAddHoliday(e) {
+      e.preventDefault();
+      const date = document.getElementById('holidayDate').value;
+      const desc = document.getElementById('holidayDesc').value;
+      if(allHolidays.some(h => h.date === date)) { showToast('❌ Tanggal ini sudah diset'); return; }
+      allHolidays.push({ id: generateId('hol'), date, desc });
+      document.getElementById('addHolidayForm').reset();
+      showManageHolidaysModal();
+      showToast('✅ Hari libur ditambahkan');
+      if(currentTab === 'grid') renderGridView();
+    }
+
+    function showManageAgendaModal() {
+      const userSelect = document.getElementById('agendaUser');
+      userSelect.innerHTML = '<option value="">-- Pilih Anggota --</option>' + 
+        allUsers.filter(u=>u.role==='team').sort((a,b)=>a.username.localeCompare(b.username))
+                .map(u => `<option value="${u.username}">${u.username}</option>`).join('');
+
+      const listContainer = document.getElementById('agendaList');
+      if (allAgendas.length === 0) {
+        listContainer.innerHTML = '<p class="text-gray-500 text-sm">Belum ada data agenda.</p>';
+      } else {
+        const sortedAgendas = [...allAgendas].sort((a,b) => new Date(a.start_date) - new Date(b.start_date));
+        listContainer.innerHTML = sortedAgendas.map(a => {
+          let badgeColor = "bg-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+          if (a.type.startsWith('I.')) badgeColor = "bg-indigo-200 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200";
+          else if (a.type.startsWith('M.')) badgeColor = "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
+          else if (['MS', 'OKR', 'TM'].includes(a.type)) badgeColor = "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+
+          return `
+          <div class="flex justify-between items-center bg-gray-50 dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700">
+            <div>
+              <p class="font-bold text-gray-800 dark:text-gray-200">${a.username} <span class="${badgeColor} text-xs px-2 rounded ml-1 font-bold">${a.type}</span></p>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">${formatDate(a.start_date)} s/d ${formatDate(a.end_date)}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-500 mt-1 italic">${a.desc || '-'}</p>
+            </div>
+            <button class="text-red-500 hover:text-red-700 font-bold text-lg px-3 py-1 del-agenda-btn bg-red-50 dark:bg-slate-700 rounded-md" data-id="${a.id}">×</button>
+          </div>
+          `;
+        }).join('');
+        
+        document.querySelectorAll('.del-agenda-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            allAgendas = allAgendas.filter(a => a.id !== e.target.dataset.id);
+            showManageAgendaModal();
+            if(currentTab === 'grid') renderGridView();
+            showToast('🗑️ Data agenda dihapus');
+          });
+        });
+      }
+      document.getElementById('manageAgendaModal').classList.remove('hidden');
+    }
+
+    function handleAddAgenda(e) {
+      e.preventDefault();
+      const username = document.getElementById('agendaUser').value;
+      const type = document.getElementById('agendaType').value;
+      const start_date = document.getElementById('agendaStart').value;
+      const end_date = document.getElementById('agendaEnd').value;
+      const desc = document.getElementById('agendaDesc').value;
+
+      if(new Date(start_date) > new Date(end_date)){ showToast('❌ Start Date tidak boleh lewat End Date'); return; }
+
+      allAgendas.push({ id: generateId('agd'), username, type, start_date, end_date, desc });
+      document.getElementById('addAgendaForm').reset();
+      showManageAgendaModal();
+      showToast(`✅ Agenda ditambahkan untuk ${username}`);
+      if(currentTab === 'grid') renderGridView();
+    }
+
+    function attachScheduleListeners() {
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => showScheduleModal('edit', e.target.dataset.id));
+      });
+      document.querySelectorAll('.pickup-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const sched = allSchedules.find(s => s.__backendId === e.target.dataset.id);
+          showActionModal('Pick Up Schedule', `Ambil jadwal "${sched.schedule_name}" ini untuk dikerjakan?`, 'pickup', sched.__backendId);
+        });
+      });
+      document.querySelectorAll('.reopen-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const sched = allSchedules.find(s => s.__backendId === e.target.dataset.id);
+          showActionModal('Reopen / Cancel', `Kembalikan jadwal "${sched.schedule_name}" ke status Available?`, 'reopen', sched.__backendId);
+        });
+      });
+      document.querySelectorAll('.release-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const sched = allSchedules.find(s => s.__backendId === e.target.dataset.id);
+          showActionModal('Publish ke Jobsheet', `Approve dan tampilkan jadwal "${sched.schedule_name}" milik ${sched.picked_by} ke Jobsheet?`, 'release', sched.__backendId);
+        });
+      });
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const sched = allSchedules.find(s => s.__backendId === e.target.dataset.id);
+          showActionModal('Delete Schedule', `Hapus jadwal "${sched.schedule_name}" secara permanen?`, 'delete', sched.__backendId);
+        });
+      });
+    }
+
+    function showActionModal(title, message, action, schedId) {
+      const titleEl = document.getElementById('actionModalTitle');
+      const messageEl = document.getElementById('actionModalMessage');
+      if (titleEl) titleEl.textContent = title;
+      if (messageEl) messageEl.textContent = message;
+      document.getElementById('actionModal')?.classList.remove('hidden');
+      pendingAction = { action, schedId };
+    }
+
+    function handleConfirmAction() {
+      if (!pendingAction) return;
+      const schedIndex = allSchedules.findIndex(s => s.__backendId === pendingAction.schedId);
+      if (schedIndex === -1) return;
+      const sched = allSchedules[schedIndex];
+
+      if (pendingAction.action === 'delete') {
+        allSchedules.splice(schedIndex, 1);
+        showToast('🗑️ Schedule dihapus');
+      } else if (pendingAction.action === 'pickup') {
+        const myAgendas = allAgendas.filter(a => a.username === currentUser.username);
+        const hasAgendaConflict = myAgendas.some(a => isOverlapping(sched.start_date, sched.end_date, a.start_date, a.end_date));
+        if (hasAgendaConflict) { showToast('❌ Bentrok! Anda memiliki agenda/cuti lain.'); document.getElementById('actionModal').classList.add('hidden'); return; }
+
+        const myScheds = allSchedules.filter(s => s.picked_by === currentUser.username && (s.status === 'picked' || s.status === 'released'));
+        const hasSchedConflict = myScheds.some(s => isOverlapping(sched.start_date, sched.end_date, s.start_date, s.end_date));
+        if (hasSchedConflict) { showToast('❌ Bentrok! Anda sudah memiliki jadwal di rentang ini.'); document.getElementById('actionModal').classList.add('hidden'); return; }
+
+        allSchedules[schedIndex].status = 'picked';
+        allSchedules[schedIndex].picked_by = currentUser.username;
+        showToast('✅ Schedule berhasil di-pick up');
+        pushNotification('all_admin', `${currentUser.username} mem-pickup jadwal ${sched.schedule_name}`);
+
+      } else if (pendingAction.action === 'reopen') {
+        allSchedules[schedIndex].status = 'available';
+        allSchedules[schedIndex].picked_by = '';
+        showToast('🔄 Schedule kembali tersedia');
+      } else if (pendingAction.action === 'release') {
+        allSchedules[schedIndex].status = 'released';
+        allSchedules[schedIndex].released_at = new Date().toISOString();
+        showToast('📤 Schedule berhasil di-publish ke Jobsheet');
+        pushNotification(sched.picked_by, `Jadwal ${sched.schedule_name} baru saja di-publish ke Jobsheet Anda`);
+      }
+
+      document.getElementById('actionModal')?.classList.add('hidden');
+      pendingAction = null;
+      renderDashboard();
+    }
+
+    // --- PARTNERS LOGIC ---
+    function renderPartners() {
+      const tbody = document.getElementById('partnersTableBody');
+      const searchInput = document.getElementById('searchPartner');
+      const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+      
+      let filtered = allPartners;
+      if (searchTerm) {
+         filtered = allPartners.filter(p => 
+            p.name.toLowerCase().includes(searchTerm) || 
+            p.area.toLowerCase().includes(searchTerm) ||
+            p.id.toLowerCase().includes(searchTerm)
+         );
+      }
+
+      if(filtered.length === 0) {
+         tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center italic text-gray-500">Tidak ada partner ditemukan.</td></tr>`;
+         return;
+      }
+
+      tbody.innerHTML = filtered.map(p => `
+         <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50">
+            <td class="px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">${p.id}</td>
+            <td class="px-4 py-3 font-bold text-gray-800 dark:text-gray-200">${p.name}</td>
+            <td class="px-4 py-3"><span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-0.5 rounded text-xs font-bold">${p.type}</span> ⭐ ${p.star}</td>
+            <td class="px-4 py-3 text-gray-600 dark:text-gray-400">${p.area}</td>
+            <td class="px-4 py-3">
+               <span class="px-2 py-1 text-xs font-bold rounded ${p.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">${p.status}</span>
+            </td>
+            <td class="px-4 py-3 text-gray-600 dark:text-gray-400">${p.system_version || '-'}</td>
+            <td class="px-4 py-3 text-right">
+               <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-1 px-3 rounded text-xs border border-indigo-200 transition" onclick="showPartnerModal('view', '${p.id}')">View / Edit</button>
+            </td>
+         </tr>
+      `).join('');
+    }
+
+    function showPartnerModal(mode, partnerId = null) {
+      const modalTitle = document.getElementById('partnerModalTitle');
+      const form = document.getElementById('partnerForm');
+      const saveBtn = document.getElementById('savePartnerBtn');
+      if (form) form.reset();
+
+      if (mode === 'create') {
+         if (modalTitle) modalTitle.textContent = "Add New Partner";
+         const internalIdEl = document.getElementById('p_internal_id');
+         if (internalIdEl) internalIdEl.value = '';
+         if (saveBtn) {
+            saveBtn.classList.remove('hidden');
+            saveBtn.textContent = 'Save Partner';
+            if(currentUser && currentUser.role !== 'admin') saveBtn.classList.add('hidden'); 
+         }
+      } else {
+         if (modalTitle) modalTitle.textContent = (currentUser && currentUser.role === 'admin') ? "Edit Partner Details" : "Partner Details";
+         if (saveBtn) {
+             saveBtn.classList.toggle('hidden', currentUser && currentUser.role !== 'admin');
+             saveBtn.textContent = 'Update Partner';
+         }
+         
+         const partner = allPartners.find(p => p.id === partnerId);
+         if (partner) {
+            const internalIdEl = document.getElementById('p_internal_id');
+            if (internalIdEl) internalIdEl.value = partner.id; 
+            Object.keys(partner).forEach(key => {
+               const el = document.getElementById(`p_${key}`);
+               if (el) el.value = partner[key];
+            });
+         }
+      }
+
+      const modal = document.getElementById('partnerModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function handleSavePartner(e) {
+      e.preventDefault();
+      if(!currentUser || currentUser.role !== 'admin') return;
+
+      const internalId = document.getElementById('p_internal_id').value;
+      const partnerData = {
+         id: document.getElementById('p_id').value,
+         name: document.getElementById('p_name').value,
+         type: document.getElementById('p_type').value,
+         star: document.getElementById('p_star').value,
+         group: document.getElementById('p_group').value,
+         room: document.getElementById('p_room').value,
+         outlet: document.getElementById('p_outlet').value,
+         status: document.getElementById('p_status').value,
+         system_live: document.getElementById('p_system_live').value,
+         system_version: document.getElementById('p_system_version').value,
+         implementation_type: document.getElementById('p_implementation_type').value,
+         address: document.getElementById('p_address').value,
+         area: document.getElementById('p_area').value,
+         sub_area: document.getElementById('p_sub_area').value,
+         last_visit: document.getElementById('p_last_visit').value,
+         last_visit_type: document.getElementById('p_last_visit_type').value,
+         last_project: document.getElementById('p_last_project').value,
+         last_project_type: document.getElementById('p_last_project_type').value,
+         submission_salutation: document.getElementById('p_subm_salut').value,
+         submission_name: document.getElementById('p_subm_name').value,
+         gm_email: document.getElementById('p_gm_email').value,
+         fc_email: document.getElementById('p_fc_email').value,
+         it_email: document.getElementById('p_it_email').value,
+         hrd_email: document.getElementById('p_hrd_email').value,
+         allowance_maintenance: document.getElementById('p_allowance').value,
+      };
+
+      if (internalId) {
+         if (partnerData.id !== internalId && allPartners.some(p => p.id === partnerData.id)) {
+            showToast('❌ ID Partner sudah digunakan oleh partner lain!');
+            return;
+         }
+         
+         const idx = allPartners.findIndex(p => p.id === internalId);
+         if(idx > -1) {
+            allPartners[idx] = partnerData;
+            showToast('✅ Data Partner berhasil diupdate');
+         }
+      } else {
+         if (allPartners.some(p => p.id === partnerData.id)) {
+            showToast('❌ ID Partner sudah digunakan!');
+            return;
+         }
+         allPartners.push(partnerData);
+         showToast('✅ Partner baru berhasil ditambahkan');
+      }
+
+      document.getElementById('partnerModal').classList.add('hidden');
+      renderPartners();
+    }
+
+    // --- PROJECTS LOGIC ---
+    function renderProjects() {
+      const tbody = document.getElementById('projectsTableBody');
+      const searchInput = document.getElementById('searchProject');
+      const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+      
+      let filtered = allProjects;
+      if (searchTerm) {
+         filtered = allProjects.filter(p => 
+            p.name.toLowerCase().includes(searchTerm) || 
+            p.hotel.toLowerCase().includes(searchTerm) ||
+            p.id.toLowerCase().includes(searchTerm)
+         );
+      }
+
+      if(filtered.length === 0) {
+         tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center italic text-gray-500">Tidak ada project ditemukan.</td></tr>`;
+         return;
+      }
+
+      tbody.innerHTML = filtered.map(p => `
+         <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50">
+            <td class="px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">
+               <div>${p.id}</div>
+               <div class="text-[10px] text-gray-400 font-normal">${p.cnc_id || '-'}</div>
+            </td>
+            <td class="px-4 py-3">
+               <div class="font-bold text-gray-800 dark:text-gray-200">${p.name}</div>
+               <div class="text-xs text-blue-600 dark:text-blue-400 font-medium">🏨 ${p.hotel}</div>
+            </td>
+            <td class="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">${p.pic || '-'}</td>
+            <td class="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">
+               <div>Mulai: ${formatDate(p.start)}</div>
+               <div>Selesai: ${formatDate(p.end)}</div>
+            </td>
+            <td class="px-4 py-3">
+               <span class="px-2 py-0.5 text-[10px] font-bold rounded ${p.status === 'Completed' || p.status === 'Done' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : p.status === 'Planned' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}">${p.status}</span>
+               <div class="text-xs mt-1 text-gray-500 font-medium">${p.type}</div>
+            </td>
+            <td class="px-4 py-3 text-right">
+               <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-1 px-3 rounded text-xs border border-indigo-200 transition" onclick="showProjectModal('view', '${p.id}')">View / Edit</button>
+            </td>
+         </tr>
+      `).join('');
+    }
+
+    function showProjectModal(mode, projId = null) {
+      const modalTitle = document.getElementById('projectModalTitle');
+      const form = document.getElementById('projectForm');
+      const saveBtn = document.getElementById('saveProjectBtn');
+      if(form) form.reset();
+
+      if (mode === 'create') {
+         if(modalTitle) modalTitle.textContent = "Add New Project";
+         const internalIdEl = document.getElementById('prj_internal_id');
+         if(internalIdEl) internalIdEl.value = '';
+         if(saveBtn) {
+             saveBtn.classList.remove('hidden');
+             saveBtn.textContent = 'Save Project';
+             if(currentUser && currentUser.role !== 'admin') saveBtn.classList.add('hidden'); 
+         }
+      } else {
+         if(modalTitle) modalTitle.textContent = (currentUser && currentUser.role === 'admin') ? "Edit Project Details" : "Project Details";
+         if(saveBtn) {
+             saveBtn.classList.toggle('hidden', currentUser && currentUser.role !== 'admin');
+             saveBtn.textContent = 'Update Project';
+         }
+         
+         const project = allProjects.find(p => p.id === projId);
+         if (project) {
+            const internalIdEl = document.getElementById('prj_internal_id');
+            if(internalIdEl) internalIdEl.value = project.id;
+            Object.keys(project).forEach(key => {
+               const el = document.getElementById(`prj_${key}`);
+               if (el) el.value = project[key];
+            });
+         }
+      }
+
+      const modal = document.getElementById('projectModal');
+      if(modal) modal.classList.remove('hidden');
+    }
+
+    function handleSaveProject(e) {
+      e.preventDefault();
+      if(!currentUser || currentUser.role !== 'admin') return;
+
+      const internalId = document.getElementById('prj_internal_id').value;
+      const projectData = {
+         id: document.getElementById('prj_id').value,
+         cnc_id: document.getElementById('prj_cnc_id').value,
+         hotel: document.getElementById('prj_hotel').value,
+         name: document.getElementById('prj_name').value,
+         info: document.getElementById('prj_info').value,
+         type: document.getElementById('prj_type').value,
+         status: document.getElementById('prj_status').value,
+         pic: document.getElementById('prj_pic').value,
+         req_pic: document.getElementById('prj_req_pic').value,
+         assignment: document.getElementById('prj_assignment').value,
+         start: document.getElementById('prj_start').value,
+         end: document.getElementById('prj_end').value,
+         total_days: document.getElementById('prj_total_days').value,
+         point_ach: document.getElementById('prj_point_ach').value,
+         point_req: document.getElementById('prj_point_req').value,
+         pct_point: document.getElementById('prj_pct_point').value,
+         kpi2: document.getElementById('prj_kpi2').value,
+         kpi2_officer: document.getElementById('prj_kpi2_officer').value,
+         handover_report: document.getElementById('prj_handover_report').value,
+         handover_days: document.getElementById('prj_handover_days').value,
+         check_report: document.getElementById('prj_check_report').value,
+         check_days: document.getElementById('prj_check_days').value,
+         s1_est: document.getElementById('prj_s1_est').value,
+         s1_over: document.getElementById('prj_s1_over').value,
+         s1_email: document.getElementById('prj_s1_email').value,
+         s2_email: document.getElementById('prj_s2_email').value,
+         s3_email: document.getElementById('prj_s3_email').value
+      };
+
+      if (internalId) {
+         if (projectData.id !== internalId && allProjects.some(p => p.id === projectData.id)) {
+            showToast('❌ ID Project sudah digunakan!');
+            return;
+         }
+         
+         const idx = allProjects.findIndex(p => p.id === internalId);
+         if(idx > -1) {
+            allProjects[idx] = projectData;
+            showToast('✅ Data Project berhasil diupdate');
+         }
+      } else {
+         if (allProjects.some(p => p.id === projectData.id)) {
+            showToast('❌ ID Project sudah digunakan!');
+            return;
+         }
+         allProjects.push(projectData);
+         showToast('✅ Project baru berhasil ditambahkan');
+      }
+
+      document.getElementById('projectModal').classList.add('hidden');
+      renderProjects();
+    }
+
+    // --- Tab Navigation ---
+    function switchTab(tab) {
+      currentTab = tab;
+      const boardBtn = document.getElementById('tabBoardBtn');
+      const gridBtn = document.getElementById('tabGridBtn');
+      const projectsBtn = document.getElementById('tabProjectsBtn');
+      const partnersBtn = document.getElementById('tabPartnersBtn');
+      const analyticsBtn = document.getElementById('tabAnalyticsBtn');
+      
+      [boardBtn, gridBtn, projectsBtn, partnersBtn, analyticsBtn].forEach(btn => {
+          if(btn) btn.className = 'py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-bold transition-colors';
+      });
+
+      const boardTab = document.getElementById('boardViewTab');
+      const gridTab = document.getElementById('gridViewTab');
+      const projectsTabContent = document.getElementById('projectsTab');
+      const partnersTabContent = document.getElementById('partnersTab');
+      const analyticsTabContent = document.getElementById('analyticsTab');
+
+      if(boardTab) boardTab.classList.add('hidden');
+      if(gridTab) gridTab.classList.add('hidden');
+      if(projectsTabContent) projectsTabContent.classList.add('hidden');
+      if(partnersTabContent) partnersTabContent.classList.add('hidden');
+      if(analyticsTabContent) analyticsTabContent.classList.add('hidden');
+
+      if (tab === 'board') {
+        if(boardBtn) boardBtn.className = 'py-4 px-2 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold transition-colors';
+        if(boardTab) boardTab.classList.remove('hidden');
+        renderDashboard();
+      } else if (tab === 'grid') {
+        if(gridBtn) gridBtn.className = 'py-4 px-2 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold transition-colors';
+        if(gridTab) gridTab.classList.remove('hidden');
+        const hint = document.getElementById('inlineEditHint');
+        if(hint) hint.classList.toggle('hidden', currentUser && currentUser.role !== 'admin');
+        populatePeriodSelector();
+        renderGridView();
+      } else if (tab === 'projects') {
+        if(projectsBtn) projectsBtn.className = 'py-4 px-2 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold transition-colors';
+        if(projectsTabContent) projectsTabContent.classList.remove('hidden');
+        const createBtn = document.getElementById('createProjectBtn');
+        if(createBtn) createBtn.classList.toggle('hidden', currentUser && currentUser.role !== 'admin');
+        renderProjects();
+      } else if (tab === 'partners') {
+        if(partnersBtn) partnersBtn.className = 'py-4 px-2 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold transition-colors';
+        if(partnersTabContent) partnersTabContent.classList.remove('hidden');
+        const createBtn = document.getElementById('createPartnerBtn');
+        if(createBtn) createBtn.classList.toggle('hidden', currentUser && currentUser.role !== 'admin');
+        renderPartners();
+      } else if (tab === 'analytics') {
+        if(analyticsBtn) analyticsBtn.className = 'py-4 px-2 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold transition-colors flex items-center gap-2';
+        if(analyticsTabContent) analyticsTabContent.classList.remove('hidden');
+        renderAnalytics();
+      }
+    }
+
+    // --- UI State Functions ---
+    function toggleScreen(screenId) {
+      return (e) => {
+        e.preventDefault();
+        const loginScreen = document.getElementById('loginScreen');
+        const registerScreen = document.getElementById('registerScreen');
+        const targetScreen = document.getElementById(screenId);
+        
+        if(loginScreen) loginScreen.classList.add('hidden');
+        if(registerScreen) registerScreen.classList.add('hidden');
+        if(targetScreen) targetScreen.classList.remove('hidden');
+      };
+    }
+
+    function checkTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.body.classList.add('dark-mode');
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.textContent = '☀️';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.body.classList.remove('dark-mode');
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.body.classList.toggle('dark-mode');
+      const themeToggle = document.getElementById('themeToggle');
+      if (isDark) {
+        localStorage.setItem('theme', 'dark');
+        if (themeToggle) themeToggle.textContent = '☀️';
+      } else {
+        localStorage.setItem('theme', 'light');
+        if (themeToggle) themeToggle.textContent = '🌙';
+      }
+      if(currentTab === 'analytics') renderAnalytics();
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      if (toast && toastMsg) {
+          toastMsg.textContent = message;
+          toast.classList.remove('hidden');
+          setTimeout(() => toast.classList.add('hidden'), 4000);
+      }
+    }
+
+    // --- Authentication ---
+    function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const user = allUsers.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+      
+      if (user) {
+        currentUser = user;
+        const loginScreen = document.getElementById('loginScreen');
+        const dashboard = document.getElementById('dashboard');
+        const loginForm = document.getElementById('loginForm');
+        const createPeriodBtn = document.getElementById('createPeriodBtn');
+
+        if(loginScreen) loginScreen.classList.add('hidden');
+        if(dashboard) dashboard.classList.remove('hidden');
+        if(loginForm) loginForm.reset();
+        if(createPeriodBtn) createPeriodBtn.classList.toggle('hidden', currentUser.role !== 'admin');
+        
+        renderNotifications();
+        switchTab('board');
+        showToast(`Selamat datang, ${user.username}!`);
+      } else {
+        showToast('❌ Username atau password salah');
+      }
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      const username = document.getElementById('regUsername').value;
+      const password = document.getElementById('regPassword').value;
+      const role = document.getElementById('regRole').value;
+
+      if (allUsers.some(u => u.username === username)) { showToast('❌ Username sudah terdaftar'); return; }
+
+      allUsers.push({
+        __backendId: generateId('u'), type: 'user', username, password, role,
+        tier: role === 'admin' ? 'admin' : 'new_born', point: role === 'admin' ? 0 : 1
+      });
+
+      showToast('✅ Registrasi berhasil! Silakan login');
+      const form = document.getElementById('registerForm');
+      const toggle = document.getElementById('toggleLogin');
+      if(form) form.reset();
+      if(toggle) toggle.click();
+    }
+
+    function handleLogout() {
+      currentUser = null;
+      const dash = document.getElementById('dashboard');
+      const login = document.getElementById('loginScreen');
+      if(dash) dash.classList.add('hidden');
+      if(login) login.classList.remove('hidden');
+      if(chartInstance) chartInstance.destroy();
+    }
+
+    // --- Dashboard & Rendering (Board View) ---
+    function renderDashboard() {
+      if (!currentUser) return;
+      const greeting = document.getElementById('userGreeting');
+      const adminPanel = document.getElementById('adminPanel');
+      const summaryPanel = document.getElementById('teamSummaryPanel');
+      const container = document.getElementById('schedulesContainer');
+
+      if(greeting) greeting.textContent = `${currentUser.username} | ${getTierName(currentUser.tier)}`;
+      if(adminPanel) adminPanel.classList.toggle('hidden', currentUser.role !== 'admin');
+      
+      if (currentUser.role === 'team') {
+        if(summaryPanel) summaryPanel.classList.remove('hidden');
+        const myScheds = allSchedules.filter(s => s.picked_by === currentUser.username && (s.status === 'picked' || s.status === 'released'));
+        let dCount = 0, mdCount = 0, dtCount = 0, phCount = 0;
+        
+        myScheds.forEach(s => {
+          if (s.schedule_name === 'Day') dCount++;
+          if (s.schedule_name === 'Middle') mdCount++;
+          if (s.schedule_name === 'Duty') dtCount++;
+          if (s.schedule_name === 'Public Holiday') phCount++;
+        });
+
+        const summaryContent = document.getElementById('teamSummaryContent');
+        if (summaryContent) {
+            summaryContent.innerHTML = `
+              <div class="bg-white dark:bg-slate-900 px-4 py-2 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700">
+                <span class="text-xs text-gray-500 dark:text-gray-400 block uppercase font-bold">Total Poin</span>
+                <span class="text-xl font-black text-blue-600 dark:text-blue-400">${currentUser.point}</span>
+              </div>
+              <div class="bg-white dark:bg-slate-900 px-4 py-2 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700">
+                <span class="text-xs text-gray-500 dark:text-gray-400 block uppercase font-bold">Tugas Diambil</span>
+                <span class="text-lg font-bold text-gray-800 dark:text-gray-200">${myScheds.length} Jadwal</span>
+              </div>
+              <div class="bg-white dark:bg-slate-900 px-4 py-2 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700 text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+                <span>Day: <b class="text-orange-600 dark:text-orange-400">${dCount}</b></span> |
+                <span>Mid: <b class="text-teal-500 dark:text-teal-400">${mdCount}</b></span> |
+                <span>Duty: <b class="text-blue-600 dark:text-blue-400">${dtCount}</b></span> |
+                <span>PH: <b class="text-red-500 dark:text-red-400">${phCount}</b></span>
+              </div>
+            `;
+        }
+      } else {
+        if(summaryPanel) summaryPanel.classList.add('hidden');
+      }
+
+      let html = '';
+      const batchedSchedules = allSchedules.filter(s => s.batch_id);
+      const uniqueBatches = [...new Set(batchedSchedules.map(s => s.batch_id))];
+
+      if (uniqueBatches.length > 0) {
+        html += '<div class="mb-10"><h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-3 border-gray-200 dark:border-slate-700">📦 Jadwal Dalam Batch</h2>';
+        uniqueBatches.forEach(batchId => {
+          const batchScheds = allSchedules.filter(s => s.batch_id === batchId);
+          const firstSched = batchScheds[0];
+          let currentPoints = 0; let pickedDetails = [];
+
+          batchScheds.forEach(bs => {
+            if (bs.status === 'picked' || bs.status === 'released') {
+              const u = allUsers.find(user => user.username === bs.picked_by);
+              if (u) { currentPoints += u.point; pickedDetails.push(`${u.username} (${u.point}pt)`); }
+            }
+          });
+
+          const remainingMax = firstSched.point_max - currentPoints;
+          let statusTextBatch = currentPoints < firstSched.point_min ? `Butuh ${firstSched.point_min - currentPoints} pt lagi minimal` : `Minimal terpenuhi (Sisa slot max: ${remainingMax} pt)`;
+
+          html += `
+            <div class="mb-8 bg-blue-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-blue-100 dark:border-slate-700">
+              <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <div>
+                  <h3 class="text-xl font-bold text-blue-700 dark:text-blue-400">Batch: ${firstSched.batch_name}</h3>
+                  <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mt-1">Syarat Poin: ${firstSched.point_min} - ${firstSched.point_max} pts</p>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border ${currentPoints >= firstSched.point_min ? 'border-green-200 dark:border-green-800' : 'border-orange-200 dark:border-orange-800'} shadow-sm min-w-[250px]">
+                  <p class="text-sm font-bold ${currentPoints >= firstSched.point_min ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}">Total Poin Saat Ini: ${currentPoints} pts</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${statusTextBatch}</p>
+                  ${pickedDetails.length > 0 ? `<p class="text-xs text-blue-600 dark:text-blue-400 mt-2 font-medium bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded inline-block">Diambil oleh: ${pickedDetails.join(', ')}</p>` : ''}
+                </div>
+              </div>
+              <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">${renderScheduleCards(batchScheds)}</div>
+            </div>`;
+        });
+        html += '</div>';
+      }
+
+      const standaloneSchedules = allSchedules.filter(s => !s.batch_id);
+      
+      if (standaloneSchedules.length > 0) {
+        html += '<div class="mb-10"><h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 border-b pb-3 border-gray-200 dark:border-slate-700">📌 Jadwal Individu (Tanpa Batch)</h2>';
+        const available = standaloneSchedules.filter(s => s.status === 'available');
+        const pickedByMe = standaloneSchedules.filter(s => (s.status === 'picked' || s.status === 'released') && s.picked_by === currentUser.username);
+        const pickedByOthers = standaloneSchedules.filter(s => (s.status === 'picked' || s.status === 'released') && s.picked_by !== currentUser.username);
+        
+        if (currentUser.role === 'admin') {
+          if (available.length > 0) html += renderGroupedStandalone(available);
+          const allStandalonePicked = standaloneSchedules.filter(s => s.status === 'picked' || s.status === 'released');
+          if (allStandalonePicked.length > 0) html += renderSection('Schedules Taken', allStandalonePicked);
+        } else {
+          if (available.length > 0) html += renderGroupedStandalone(available);
+          if (pickedByMe.length > 0) html += renderSection('My Schedules', pickedByMe);
+          if (pickedByOthers.length > 0) html += renderSection('Schedules Taken by Others', pickedByOthers);
+        }
+        html += '</div>';
+      }
+
+      if (allSchedules.length === 0) {
+        html = '<div class="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm"><p class="text-gray-500 dark:text-gray-400 text-lg">No schedules available right now. ☕</p></div>';
+      }
+
+      if(container) {
+        container.innerHTML = html;
+        attachScheduleListeners();
+      }
+    }
+
+    function renderGroupedStandalone(schedules) {
+      const scheduleOrder = ['Middle', 'Day', 'Duty', 'Saturday', 'Sunday', 'Public Holiday'];
+      let html = '<div class="space-y-8 mb-8">';
+      scheduleOrder.forEach(scheduleName => {
+        const filtered = schedules.filter(s => s.schedule_name === scheduleName);
+        if (filtered.length > 0) html += renderSection(`Available: ${scheduleName}`, filtered);
+      });
+      html += '</div>';
+      return html;
+    }
+
+    function renderSection(title, schedules) {
+      return `<div>
+        <h3 class="text-lg font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2"><span class="w-1.5 h-5 bg-blue-500 rounded-full inline-block"></span> ${title}</h3>
+        <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3 mb-8">${renderScheduleCards(schedules)}</div>
+      </div>`;
+    }
+
+    function renderScheduleCards(schedules) {
+      let html = '';
+      schedules.forEach(sched => {
+        const statusClass = `status-${sched.status}`;
+        const statusText = sched.status === 'available' ? 'Available' : sched.status === 'picked' ? 'Taken (Menunggu)' : 'Released (Publish)';
+        
+        let btnType = '';
+        if (currentUser.role === 'admin') { btnType = 'admin'; } 
+        else {
+           if (sched.status === 'available') btnType = 'team';
+           else if (sched.status === 'picked' && sched.picked_by === currentUser.username) btnType = 'team-owned-picked';
+           else if (sched.status === 'released' && sched.picked_by === currentUser.username) btnType = 'team-owned-released';
+           else if (sched.picked_by !== currentUser.username) btnType = 'team-others';
+        }
+
+        html += `
+          <div class="bg-white dark:bg-slate-900 rounded-xl shadow-md p-6 card-hover flex flex-col h-full border border-gray-200 dark:border-slate-700">
+            <div class="flex justify-between items-start mb-4">
+              <h3 class="font-bold text-lg text-gray-800 dark:text-white flex-1">${sched.schedule_name}</h3>
+              <span class="status-badge ${statusClass}">${statusText}</span>
+            </div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 flex-grow mb-4 leading-relaxed">${sched.description || 'No description provided.'}</p>
+            <div class="text-sm text-gray-500 dark:text-gray-400 space-y-2 mb-4 pb-4 border-b border-gray-100 dark:border-slate-700">
+              <p class="font-medium flex items-center gap-2">📅 ${formatDate(sched.start_date)} - ${formatDate(sched.end_date)}</p>
+              ${sched.picked_by ? `<p class="flex items-center gap-2">👤 Taken by: <span class="font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded">${sched.picked_by}</span></p>` : ''}
+            </div>
+            <div class="flex gap-2 flex-wrap mt-auto">${getScheduleButtons(sched, btnType)}</div>
+          </div>
+        `;
+      });
+      return html;
+    }
+
+    function getScheduleButtons(sched, type) {
+      if (type === 'admin') {
+        let btns = '';
+        if (sched.status === 'available') {
+          btns += `<button class="text-xs bg-blue-500 hover:bg-blue-600 text-white font-medium px-3 py-2 rounded-lg edit-btn shadow-sm transition flex-1" data-id="${sched.__backendId}">✏️ Edit</button>`;
+          btns += `<button class="text-xs bg-red-500 hover:bg-red-600 text-white font-medium px-3 py-2 rounded-lg delete-btn shadow-sm transition flex-1" data-id="${sched.__backendId}">🗑️ Delete</button>`;
+        }
+        if (sched.status === 'picked') {
+          btns += `<button class="text-xs bg-indigo-500 hover:bg-indigo-600 text-white font-medium px-3 py-2 rounded-lg release-btn shadow-sm transition flex-1" data-id="${sched.__backendId}">✔️ Release</button>`;
+          btns += `<button class="text-xs bg-orange-500 hover:bg-orange-600 text-white font-medium px-3 py-2 rounded-lg reopen-btn shadow-sm transition flex-1" data-id="${sched.__backendId}">✖️ Cancel</button>`;
+        }
+        if (sched.status === 'released') {
+          btns += `<button class="text-xs bg-orange-500 hover:bg-orange-600 text-white font-medium px-3 py-2 rounded-lg reopen-btn shadow-sm transition w-full" data-id="${sched.__backendId}">Reopen / Cancel</button>`;
+        }
+        return btns;
+      } 
+      if (type === 'team' && sched.status === 'available') return `<button class="text-sm w-full btn-primary text-white font-bold px-4 py-2 rounded-lg pickup-btn" data-id="${sched.__backendId}">Pick Up Schedule</button>`;
+      if (type === 'team-owned-picked') return `<button class="text-sm w-full bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg reopen-btn shadow-sm transition" data-id="${sched.__backendId}">Batalkan Pick Up</button>`;
+      if (type === 'team-owned-released') return `<span class="text-xs text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 px-3 py-2 rounded-lg w-full text-center">Jadwal Fix di Kalender</span>`;
+      if (type === 'team-others') return `<span class="text-xs text-gray-500 font-medium bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-3 py-2 rounded-lg w-full text-center">Telah diambil oleh ${sched.picked_by}</span>`;
+      return '';
+    }
+
+    // --- GRID VIEW (Jobsheet) Logic & Drag Edit ---
+    function renderGridView() {
+      const container = document.getElementById('gridContainer');
+      const periodSelector = document.getElementById('periodSelector');
+      const periodId = periodSelector ? periodSelector.value : null;
+      const searchInput = document.getElementById('searchGridUser');
+      const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+      const period = allPeriods.find(p => p.id === periodId);
+
+      if (!period) {
+        if(container) container.innerHTML = '<p class="text-gray-500 italic p-4 text-center">Pilih periode untuk melihat jadwal...</p>';
+        return;
+      }
+
+      const dates = [];
+      const startParts = period.start.split('-');
+      const endParts = period.end.split('-');
+      let currDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+      const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+
+      while(currDate <= endDate) {
+        dates.push(new Date(currDate));
+        currDate.setDate(currDate.getDate() + 1);
+      }
+
+      let tableHtml = `<div class="mb-4 text-center font-bold text-xl uppercase text-gray-800 dark:text-white border-b-2 border-blue-500 pb-2 inline-block">SUPPORT IN CHARGE SCHEDULE PERIODE ${period.name.toUpperCase()}</div>
+        <table class="grid-table bg-white dark:bg-slate-800" id="jobsheetTable">
+          <thead>
+            <tr>
+              <th rowspan="2" class="sticky-col border-r-2 border-gray-400 min-w-[150px] uppercase text-sm tracking-wider">PIC</th>`;
+      
+      dates.forEach(d => {
+        const dayOfWeek = d.getDay();
+        const isHol = isHoliday(d);
+        let classStr = "text-gray-800 dark:text-gray-200";
+        if (isHol) classStr = "bg-holiday";
+        else if (dayOfWeek === 6) classStr = "bg-saturday";
+        else if (dayOfWeek === 0) classStr = "bg-sunday";
+        tableHtml += `<th class="${classStr}">${d.toLocaleDateString('en-GB', { month: 'short' })}</th>`;
+      });
+      tableHtml += `</tr><tr>`;
+      
+      dates.forEach(d => {
+        const dayOfWeek = d.getDay();
+        const isHol = isHoliday(d);
+        let classStr = "text-gray-800 dark:text-gray-200 font-bold";
+        if (isHol) classStr = "bg-holiday font-bold";
+        else if (dayOfWeek === 6) classStr = "bg-saturday font-bold";
+        else if (dayOfWeek === 0) classStr = "bg-sunday font-bold";
+        tableHtml += `<th class="${classStr}">${d.getDate().toString().padStart(2, '0')}</th>`;
+      });
+
+      tableHtml += `</tr></thead><tbody>`;
+
+      let teamUsers = allUsers.filter(u => u.role === 'team').sort((a,b) => a.username.localeCompare(b.username));
+      if (searchTerm) teamUsers = teamUsers.filter(u => u.username.toLowerCase().includes(searchTerm));
+
+      if (teamUsers.length === 0) {
+        tableHtml += `<tr><td colspan="${dates.length + 1}" class="p-4 text-center italic text-gray-500">Tidak ada user ditemukan.</td></tr>`;
+      }
+
+      teamUsers.forEach(user => {
+        tableHtml += `<tr>
+          <td class="sticky-col border-r-2 border-gray-400 text-left font-medium text-gray-700 dark:text-gray-300">${user.username}</td>`;
+          
+        dates.forEach(d => {
+            const dayOfWeek = d.getDay();
+            const isHol = isHoliday(d);
+            let tdClass = "bg-gray-50 dark:bg-slate-800/50 transition-colors text-center font-bold align-middle border";
+            
+            if (isHol) tdClass = "bg-gray-300 dark:bg-slate-600 border-gray-400 dark:border-slate-500 opacity-90 text-center font-bold align-middle text-gray-800 dark:text-white border"; 
+            else if(dayOfWeek === 6) tdClass = "bg-saturday opacity-90 text-center font-bold align-middle border"; 
+            else if(dayOfWeek === 0) tdClass = "bg-sunday opacity-90 text-center font-bold align-middle border"; 
+            
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${yyyy}-${mm}-${dd}`;
+
+            const userAgendas = allAgendas.filter(a => a.username === user.username && dateStr >= a.start_date && dateStr <= a.end_date);
+            let cellTextArray = [];
+            let isEditableInline = true;
+
+            if (userAgendas.length > 0) {
+                if (userAgendas[0].desc !== 'Inline Input') isEditableInline = false;
+                const agendaType = userAgendas[0].type;
+                let bgClass = "bg-yellow-200 dark:bg-yellow-800 border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200";
+
+                if (agendaType.startsWith('I.')) bgClass = "bg-indigo-200 dark:bg-indigo-800 border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200";
+                else if (agendaType.startsWith('M.')) bgClass = "bg-emerald-200 dark:bg-emerald-800 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200";
+                else if (['MS', 'OKR', 'TM'].includes(agendaType)) bgClass = "bg-purple-200 dark:bg-purple-800 border-purple-300 dark:border-purple-700 text-purple-800 dark:text-purple-200";
+
+                tdClass = `${bgClass} opacity-90 text-center align-middle border`;
+                cellTextArray.push(`<span class="font-extrabold text-xs tracking-wide">${agendaType}</span>`);
+            } else {
+                const userScheds = allSchedules.filter(s => s.status === 'released' && s.picked_by === user.username && dateStr >= s.start_date && dateStr <= s.end_date);
+                if (userScheds.length > 0 && userScheds.some(s => s.description !== 'Inline Input')) {
+                    isEditableInline = false;
+                }
+
+                userScheds.forEach(sched => {
+                    if (sched.schedule_name === 'Day') cellTextArray.push('<span class="text-[#c2410c] dark:text-orange-400 font-extrabold tracking-wide">D</span>');
+                    else if (sched.schedule_name === 'Middle') cellTextArray.push('<span class="text-[#4fd1c5] dark:text-teal-300 font-extrabold tracking-wide">MD</span>');
+                    else if (sched.schedule_name === 'Duty') {
+                        let skipSunday = false;
+                        if (dayOfWeek === 0) { 
+                            const prevDay = new Date(d); prevDay.setDate(prevDay.getDate() - 1);
+                            const pDateStr = `${prevDay.getFullYear()}-${String(prevDay.getMonth() + 1).padStart(2, '0')}-${String(prevDay.getDate()).padStart(2, '0')}`;
+                            if (sched.start_date <= pDateStr && sched.end_date >= pDateStr) skipSunday = true; 
+                        }
+                        if (!skipSunday) cellTextArray.push('<span class="text-blue-700 dark:text-blue-400 font-extrabold tracking-wide">DT</span>');
+                    } 
+                    else if (sched.schedule_name === 'Public Holiday') cellTextArray.push('PH');
+                    else if (sched.schedule_name === 'Saturday') cellTextArray.push('Sat');
+                    else if (sched.schedule_name === 'Sunday') cellTextArray.push('Sun');
+                    else cellTextArray.push(sched.schedule_name.substring(0,2).toUpperCase());
+                });
+            }
+            
+            let editableAttr = '';
+            if(currentUser.role === 'admin') {
+                if (isEditableInline) {
+                    tdClass += " editable-cell cursor-cell select-none relative";
+                    editableAttr = `data-date="${dateStr}" data-user="${user.username}" title="Klik & geser untuk edit"`;
+                } else {
+                    tdClass += " cursor-not-allowed opacity-80 select-none";
+                    editableAttr = `title="Dibuat dari Board. Edit via Board."`;
+                }
+            }
+
+            tableHtml += `<td class="${tdClass}" ${editableAttr}>${cellTextArray.join(' / ')}</td>`;
+        });
+        tableHtml += `</tr>`;
+      });
+
+      tableHtml += `</tbody></table>`;
+      if(container) {
+          container.innerHTML = tableHtml;
+          attachGridDragListeners();
+      }
+    }
+
+    // --- Drag & Drop Selection Logic ---
+    function attachGridDragListeners() {
+        const table = document.getElementById('jobsheetTable');
+        if (!table) return;
+
+        // Mouse Events
+        table.onmousedown = handleDragStart;
+        table.onmouseover = handleDragMove;
+        window.removeEventListener('mouseup', handleDragEnd); // prevent duplicates
+        window.addEventListener('mouseup', handleDragEnd);
+
+        // Touch Events
+        table.addEventListener('touchstart', handleTouchStart, {passive: false});
+        table.addEventListener('touchmove', handleTouchMove, {passive: false});
+        window.addEventListener('touchend', handleDragEnd);
+        
+        // Double click inline edit
+        table.ondblclick = handleInlineEdit;
+    }
+
+    function handleDragStart(e) {
+        if (currentUser?.role !== 'admin' || e.button !== 0) return; // Only left click & admin
+        const td = e.target.closest('td.editable-cell');
+        if (!td) return;
+
+        isDragging = true;
+        dragUser = td.dataset.user;
+        dragStartD = td.dataset.date;
+        dragEndD = dragStartD;
+        
+        highlightGridRange(dragUser, dragStartD, dragEndD);
+    }
+
+    function handleDragMove(e) {
+        if (!isDragging) return;
+        const td = e.target.closest('td.editable-cell');
+        if (!td || td.dataset.user !== dragUser) return; // Must be same row (user)
+        
+        dragEndD = td.dataset.date;
+        highlightGridRange(dragUser, dragStartD, dragEndD);
+    }
+
+    function handleTouchStart(e) {
+        if (currentUser?.role !== 'admin') return;
+        const touch = e.touches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        if(!el) return;
+        const td = el.closest('td.editable-cell');
+        if (!td) return;
+
+        isDragging = true;
+        dragUser = td.dataset.user;
+        dragStartD = td.dataset.date;
+        dragEndD = dragStartD;
+        highlightGridRange(dragUser, dragStartD, dragEndD);
+    }
+
+    function handleTouchMove(e) {
+        if (!isDragging) return;
+        e.preventDefault(); // Prevent scrolling while selecting
+        const touch = e.touches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        if(!el) return;
+        const td = el.closest('td.editable-cell');
+        if (!td || td.dataset.user !== dragUser) return;
+        
+        dragEndD = td.dataset.date;
+        highlightGridRange(dragUser, dragStartD, dragEndD);
+    }
+
+    function handleDragEnd(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        
+        if (dragUser && dragStartD && dragEndD) {
+            let d1 = new Date(dragStartD);
+            let d2 = new Date(dragEndD);
+            let finalStart = d1 <= d2 ? dragStartD : dragEndD;
+            let finalEnd = d1 <= d2 ? dragEndD : dragStartD;
+
+            if(finalStart === finalEnd) {
+                // If it's a single click (no drag), don't show the bulk edit modal.
+                // Let the double click handler take care of single cell edit.
+                clearGridSelection();
+                return;
+            }
+
+            let textDesc = `Memperbarui ${dragUser} dari ${formatDate(finalStart)} s/d ${formatDate(finalEnd)}`;
+            const descEl = document.getElementById('bulkEditDesc');
+            if(descEl) descEl.textContent = textDesc;
+            
+            const selectEl = document.getElementById('bulkEditSelect');
+            if(selectEl) selectEl.value = '';
+            
+            const modal = document.getElementById('bulkEditModal');
+            if(modal) modal.classList.remove('hidden');
+        }
+    }
+
+    function highlightGridRange(user, date1, date2) {
+        clearGridSelection();
+        let d1 = new Date(date1);
+        let d2 = new Date(date2);
+        let start = d1 <= d2 ? date1 : date2;
+        let end = d1 <= d2 ? date2 : date1;
+
+        const tds = document.querySelectorAll(`td.editable-cell[data-user="${user}"]`);
+        tds.forEach(td => {
+            const tdDate = td.dataset.date;
+            if (tdDate >= start && tdDate <= end) {
+                td.classList.add('drag-selected');
+            }
+        });
+    }
+
+    function clearGridSelection() {
+        document.querySelectorAll('.drag-selected').forEach(el => el.classList.remove('drag-selected'));
+    }
+
+    function handleInlineEdit(e) {
+       if (currentUser.role !== 'admin') return;
+       const td = e.target.closest('td.editable-cell');
+       if (!td || td.querySelector('select')) return; // Ignore if not editable or already editing
+       
+       const date = td.dataset.date;
+       const username = td.dataset.user;
+
+       // Simpan konten lama agar bisa dikembalikan jika batal
+       const oldContent = td.innerHTML;
+
+       // Inject dropdown dengan opsi Clear
+       td.innerHTML = `
+         <select class="inline-select" data-date="${date}" data-user="${username}">
+            <option value="">- Pilih Tipe -</option>
+            <option value="clear" class="text-red-600 font-bold">🗑️ Clear / Kosongkan Area Terpilih</option>
+            <optgroup label="Shift">
+               <option value="sched_Day">Day (D)</option>
+               <option value="sched_Middle">Middle (MD)</option>
+               <option value="sched_Duty">Duty (DT)</option>
+            </optgroup>
+            <optgroup label="Agenda at Partner">
+               <option value="agd_I.TLK">Impl. TLK (I.TLK)</option>
+               <option value="agd_I.TCK">Impl. TCK (I.TCK)</option>
+               <option value="agd_I.TLD">Impl. TLD (I.TLD)</option>
+               <option value="agd_I.TLN">Impl. TLN (I.TLN)</option>
+               <option value="agd_M.TLK">Maint. TLK (M.TLK)</option>
+               <option value="agd_M.TCK">Maint. TCK (M.TCK)</option>
+               <option value="agd_M.TLD">Maint. TLD (M.TLD)</option>
+               <option value="agd_M.TLN">Maint. TLN (M.TLN)</option>
+            </optgroup>
+            <optgroup label="Agenda at Office">
+               <option value="agd_MS">Maint. Seamless (MS)</option>
+               <option value="agd_OKR">Team OKR (OKR)</option>
+               <option value="agd_TM">Team Ticket Master (TM)</option>
+            </optgroup>
+            <optgroup label="Absensi">
+               <option value="agd_C">Cuti (C)</option>
+               <option value="agd_I">Izin (I)</option>
+               <option value="agd_S">Sakit (S)</option>
+            </optgroup>
+         </select>
+       `;
+
+       const select = td.querySelector('select');
+       if (select) select.focus();
+
+       const saveInline = (ev) => {
+          const val = ev.target.value;
+          if (val) {
+             // Hapus jadwal/agenda lama (HANYA YANG INLINE INPUT) agar input utama tidak tertimpa tak sengaja
+             allSchedules = allSchedules.filter(s => !(s.picked_by === username && date >= s.start_date && date <= s.end_date && s.description === 'Inline Input'));
+             allAgendas = allAgendas.filter(a => !(a.username === username && date >= a.start_date && date <= a.end_date && a.desc === 'Inline Input'));
+
+             if (val === 'clear') {
+                showToast(`✅ Data pada tanggal ${formatDate(date)} berhasil dikosongkan`);
+             } else if (val.startsWith('sched_')) {
+                const schedName = val.split('_')[1];
+                allSchedules.push({
+                   __backendId: generateId('sched'), type: 'schedule', schedule_name: schedName, description: 'Inline Input',
+                   start_date: date, end_date: date, status: 'released', batch_id: '', batch_name: '', point_min: 0, point_max: 0,
+                   picked_by: username, released_at: new Date().toISOString(), created_by: currentUser.username
+                });
+                showToast(`✅ Jadwal ${schedName} ditambahkan untuk ${username}`);
+                pushNotification(username, `Jadwal ${schedName} baru saja di-assign ke Anda`);
+             } else if (val.startsWith('agd_')) {
+                const agdType = val.split('_')[1];
+                allAgendas.push({ id: generateId('agd'), username: username, type: agdType, start_date: date, end_date: date, desc: 'Inline Input' });
+                showToast(`✅ Agenda ${agdType} ditambahkan untuk ${username}`);
+             }
+             renderGridView(); // Re-render grid untuk menampilkan perubahan
+          } else {
+             // Revert ke tampilan teks jika user memilih '-' atau nge-klik di luar (blur)
+             td.innerHTML = oldContent;
+          }
+       };
+
+       if(select) {
+           select.addEventListener('blur', saveInline);
+           select.addEventListener('change', saveInline);
+       }
+    }
+
+    function saveBulkEdit() {
+        const selectEl = document.getElementById('bulkEditSelect');
+        const val = selectEl ? selectEl.value : '';
+        
+        if (!val) { showToast('❌ Pilih tipe jadwal terlebih dahulu!'); return; }
+
+        let d1 = new Date(dragStartD);
+        let d2 = new Date(dragEndD);
+        let finalStart = d1 <= d2 ? dragStartD : dragEndD;
+        let finalEnd = d1 <= d2 ? dragEndD : dragStartD;
+
+        // Generate array of specific dates in the selected range
+        let targetDates = [];
+        let curr = new Date(finalStart);
+        let end = new Date(finalEnd);
+        while (curr <= end) {
+            const yyyy = curr.getFullYear();
+            const mm = String(curr.getMonth() + 1).padStart(2, '0');
+            const dd = String(curr.getDate()).padStart(2, '0');
+            targetDates.push(`${yyyy}-${mm}-${dd}`);
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        // Hapus hanya tanggal-tanggal spesifik yang ada di rentang seleksi 
+        // (yang merupakan Inline Input, karena satu Inline Input sekarang dibuat per hari)
+        allSchedules = allSchedules.filter(s => {
+            if (s.picked_by === dragUser && s.description === 'Inline Input') {
+                if (targetDates.includes(s.start_date)) return false; // Buang data di tanggal ini
+            }
+            return true;
+        });
+        
+        allAgendas = allAgendas.filter(a => {
+            if (a.username === dragUser && a.desc === 'Inline Input') {
+                if (targetDates.includes(a.start_date)) return false; // Buang data di tanggal ini
+            }
+            return true;
+        });
+
+        if (val === 'clear') {
+            showToast(`✅ Area yang dipilih berhasil dikosongkan`);
+        } else if (val.startsWith('sched_')) {
+            const schedName = val.split('_')[1];
+            // Simpan setiap hari sebagai objek individual
+            targetDates.forEach(dateStr => {
+                allSchedules.push({
+                    __backendId: generateId('sched'), type: 'schedule', schedule_name: schedName, description: 'Inline Input',
+                    start_date: dateStr, end_date: dateStr, status: 'released', batch_id: '', batch_name: '', point_min: 0, point_max: 0,
+                    picked_by: dragUser, released_at: new Date().toISOString(), created_by: currentUser.username
+                });
+            });
+            showToast(`✅ Jadwal ${schedName} ditambahkan`);
+            pushNotification(dragUser, `Jadwal ${schedName} ditugaskan ke Anda`);
+        } else if (val.startsWith('agd_')) {
+            const agdType = val.split('_')[1];
+            // Simpan setiap hari sebagai objek individual
+            targetDates.forEach(dateStr => {
+                allAgendas.push({ id: generateId('agd'), username: dragUser, type: agdType, start_date: dateStr, end_date: dateStr, desc: 'Inline Input' });
+            });
+            showToast(`✅ Agenda ${agdType} ditambahkan`);
+        }
+
+        const modal = document.getElementById('bulkEditModal');
+        if(modal) modal.classList.add('hidden');
+        renderGridView();
+    }
+
+    // --- Analytics Tab Logic ---
+    function renderAnalytics() {
+      // 1. Calculate Analytics Data
+      const teamUsers = allUsers.filter(u => u.role === 'team');
+      let stats = teamUsers.map(u => {
+         return {
+            username: u.username,
+            point: u.point,
+            totalSched: 0,
+            totalImpl: 0,
+            totalMaint: 0,
+            totalAbsence: 0
+         };
+      });
+
+      let implCount = 0, maintCount = 0, otherCount = 0, schedCount = 0;
+
+      // Count Schedules
+      allSchedules.filter(s => s.status === 'released' || s.status === 'picked').forEach(s => {
+         schedCount++;
+         let statObj = stats.find(st => st.username === s.picked_by);
+         if(statObj) statObj.totalSched++;
+      });
+
+      // Count Agendas
+      allAgendas.forEach(a => {
+         let statObj = stats.find(st => st.username === a.username);
+         if (a.type.startsWith('I.')) { implCount++; if(statObj) statObj.totalImpl++; }
+         else if (a.type.startsWith('M.')) { maintCount++; if(statObj) statObj.totalMaint++; }
+         else if (['C','I','S'].includes(a.type)) { if(statObj) statObj.totalAbsence++; }
+         else { otherCount++; }
+      });
+
+      // 2. Render Top Performer (Sort by points, take top 5)
+      const topPerformers = [...stats].sort((a,b) => b.point - a.point).slice(0, 5);
+      const topContainer = document.getElementById('topPerformerList');
+      if (topContainer) {
+          topContainer.innerHTML = topPerformers.map((p, index) => `
+             <div class="flex justify-between items-center bg-gray-50 dark:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                   <span class="font-black text-lg ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : index===2 ? 'text-amber-600' : 'text-gray-500'}">#${index+1}</span>
+                   <span class="font-bold text-gray-800 dark:text-gray-200">${p.username}</span>
+                </div>
+                <span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 font-bold px-2 py-1 rounded text-sm">${p.point} pts</span>
+             </div>
+          `).join('');
+      }
+
+      // 3. Render Chart.js
+      const canvasEl = document.getElementById('taskDistributionChart');
+      if(canvasEl) {
+          const ctx = canvasEl.getContext('2d');
+          if(chartInstance) chartInstance.destroy();
+
+          const isDark = document.documentElement.classList.contains('dark');
+          const textColor = isDark ? '#e2e8f0' : '#1f2937';
+
+          chartInstance = new Chart(ctx, {
+             type: 'doughnut',
+             data: {
+                labels: ['Schedules (D/MD/DT)', 'Project Implementation', 'Maintenance', 'Internal/Others'],
+                datasets: [{
+                   data: [schedCount, implCount, maintCount, otherCount],
+                   backgroundColor: ['#3b82f6', '#6366f1', '#10b981', '#a855f7'],
+                   borderWidth: 0,
+                   hoverOffset: 4
+                }]
+             },
+             options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                   legend: { position: 'right', labels: { color: textColor, font: {family: 'sans-serif'} } }
+                },
+                cutout: '65%'
+             }
+          });
+      }
+
+      // 4. Render Table Recap
+      window.currentStats = stats; // Save for search filter
+      renderAnalyticsTable();
+    }
+
+    function renderAnalyticsTable() {
+       if(!window.currentStats) return;
+       const searchInput = document.getElementById('searchAnalyticsUser');
+       const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+       let filtered = window.currentStats;
+       if(searchTerm) filtered = filtered.filter(s => s.username.toLowerCase().includes(searchTerm));
+
+       const tbody = document.getElementById('recapTableBody');
+       if(tbody) {
+           tbody.innerHTML = filtered.sort((a,b)=>a.username.localeCompare(b.username)).map(s => `
+             <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                <td class="px-4 py-3 font-bold">${s.username}</td>
+                <td class="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">${s.point}</td>
+                <td class="px-4 py-3">${s.totalSched} Hari</td>
+                <td class="px-4 py-3">${s.totalImpl} Tugas</td>
+                <td class="px-4 py-3">${s.totalMaint} Tugas</td>
+                <td class="px-4 py-3 text-red-500 font-medium">${s.totalAbsence} Hari</td>
+             </tr>
+           `).join('');
+       }
+    }
+
+    // --- Export to Excel ---
+    function exportToExcel() {
+      const table = document.querySelector('.grid-table');
+      if(!table) { showToast('❌ Tidak ada tabel untuk diekspor'); return; }
+      try {
+        const cloneTable = table.cloneNode(true);
+        const wb = XLSX.utils.table_to_book(cloneTable, {sheet:"Schedule"});
+        const periodSelector = document.getElementById('periodSelector');
+        const periodName = periodSelector ? periodSelector.options[periodSelector.selectedIndex].text : 'Schedule';
+        XLSX.writeFile(wb, `Power_Management_${periodName.replace(/\s+/g, '_')}.xlsx`);
+        showToast('📥 Export Excel berhasil dijalankan');
+      } catch (e) {
+        showToast('❌ Gagal mengekspor file Excel');
+      }
+    }
+
+    // --- Export to PDF ---
+    function exportToPDF() {
+      const element = document.getElementById('gridContainer');
+      if(!element || !document.querySelector('.grid-table')) { showToast('❌ Tidak ada tabel untuk diekspor'); return; }
+      
+      showToast('⏳ Memproses PDF, mohon tunggu...');
+      const periodSelector = document.getElementById('periodSelector');
+      const periodName = periodSelector ? periodSelector.options[periodSelector.selectedIndex]?.text : 'Schedule';
+      const filename = `Power_Management_${periodName.replace(/\s+/g, '_')}.pdf`;
+      
+      const opt = {
+        margin:       0.3,
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' }
+      };
+      
+      html2pdf().set(opt).from(element).save().then(() => {
+        showToast('📥 Export PDF berhasil diunduh');
+      }).catch(e => {
+        showToast('❌ Gagal mengekspor file PDF');
+      });
+    }
+
+    // --- Utilities ---
+    function formatDate(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString + 'T00:00:00');
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    function getTierPoints(tier) { const tiers = { 'new_born': 1, 'tier_1': 1, 'tier_2': 2, 'tier_3': 3, 'admin': 0 }; return tiers[tier] || 0; }
+    function getTierName(tier) { const names = { 'new_born': 'New Born', 'tier_1': 'Tier 1', 'tier_2': 'Tier 2', 'tier_3': 'Tier 3', 'admin': 'Admin' }; return names[tier] || tier; }
+  </script>
+</body>
+</html>
