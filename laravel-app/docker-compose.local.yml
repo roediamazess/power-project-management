@@ -1,0 +1,56 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    environment:
+      - APP_NAME=${APP_NAME:-Power Project Management}
+      - APP_ENV=local
+      - APP_KEY=${APP_KEY:-}
+      - APP_DEBUG=true
+      - APP_URL=${APP_URL:-http://localhost:8080}
+      - LOG_CHANNEL=stderr
+      - DB_CONNECTION=pgsql
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-app}
+      - DB_USERNAME=${DB_USERNAME:-app}
+      - DB_PASSWORD=${DB_PASSWORD:-app_password}
+      - RUN_MIGRATIONS=1
+      - RUN_SEEDERS=1
+      - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@local.test}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-password}
+    volumes:
+      - storage_data:/var/www/html/storage
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${DB_DATABASE:-app}
+      - POSTGRES_USER=${DB_USERNAME:-app}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-app_password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-app} -d ${DB_DATABASE:-app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  storage_data:

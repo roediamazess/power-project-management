@@ -1,8 +1,13 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This repo saat ini punya 2 aplikasi:
+
+- Next.js (legacy UI/template) di root repo
+- Laravel 12 + Inertia (React) di folder `laravel-app/` (ini yang akan jadi aplikasi utama)
 
 ## Getting Started
 
-First, run the development server:
+### Next.js (legacy)
+
+Run development server:
 
 ```bash
 npm run dev
@@ -17,6 +22,53 @@ bun dev
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+### Laravel 12 + Inertia (React) — Local Run
+
+#### Production-like via Docker (disarankan)
+
+Di root repo:
+
+```powershell
+docker compose -f laravel-app\docker-compose.local.yml up -d --build
+```
+
+Buka:
+
+- http://localhost:8080
+
+Status & log:
+
+```powershell
+docker compose -f laravel-app\docker-compose.local.yml ps
+docker compose -f laravel-app\docker-compose.local.yml logs -f app
+docker compose -f laravel-app\docker-compose.local.yml logs -f web
+```
+
+Stop:
+
+```powershell
+docker compose -f laravel-app\docker-compose.local.yml down
+```
+
+Reset database (hapus volume):
+
+```powershell
+docker compose -f laravel-app\docker-compose.local.yml down -v
+docker compose -f laravel-app\docker-compose.local.yml up -d --build
+```
+
+#### Dev cepat (tanpa stack DB)
+
+Di root repo:
+
+```powershell
+docker run --rm -p 8000:8000 -v C:/Website/power-project-management/laravel-app:/app -w /app php:8.4-cli sh -lc "php artisan serve --host=0.0.0.0 --port=8000"
+```
+
+Buka:
+
+- http://localhost:8000
 
 ## Learn More
 

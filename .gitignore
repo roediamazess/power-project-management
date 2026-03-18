@@ -16,3 +16,9 @@ pnpm-debug.log*
 Thumbs.db
 
 envato-template
+
+.backups/*
+!.backups/README.md
+
+db_dump.sql
+storage_data.tar.gz
