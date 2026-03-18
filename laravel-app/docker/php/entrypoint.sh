@@ -5,29 +5,20 @@ cd /var/www/html
 
 rm -f bootstrap/cache/*.php >/dev/null 2>&1 || true
 
-if [ ! -f .env ] && [ -f .env.example ]; then
-  cp .env.example .env
+if [ "${1:-}" != "php-fpm" ]; then
+  exec "$@"
 fi
 
-if [ -n "${APP_KEY:-}" ] && [ -f .env ]; then
-  if grep -q "^APP_KEY=" .env; then
-    sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
-  else
-    printf "\nAPP_KEY=%s\n" "${APP_KEY}" >> .env
-  fi
-fi
-
-if [ -z "${APP_KEY:-}" ] && [ -f .env ] && grep -q "^APP_KEY=$" .env; then
-  php artisan key:generate --force
+if [ -z "${APP_KEY:-}" ]; then
+  echo "APP_KEY wajib diisi untuk menjalankan php-fpm (set di .env untuk docker compose)" >&2
+  exit 1
 fi
 
 php artisan config:clear >/dev/null 2>&1 || true
 
-if [ -n "${APP_KEY:-}" ]; then
-  php artisan config:cache
-  php artisan route:cache || true
-  php artisan view:cache || true
-fi
+php artisan config:cache
+php artisan route:cache || true
+php artisan view:cache || true
 
 if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
   if [ "${DB_CONNECTION:-}" = "mysql" ]; then
