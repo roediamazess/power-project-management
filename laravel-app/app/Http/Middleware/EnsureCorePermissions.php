@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Database\Seeders\ReleaseNotesSeeder;
 
 class EnsureCorePermissions
 {
@@ -29,6 +30,20 @@ class EnsureCorePermissions
 
                 return true;
             });
+            Cache::remember('core_release_notes_seeded_v1', now()->addHours(6), function () {
+                if (! Schema::hasTable('release_notes')) {
+                    return true;
+                }
+
+                if (\App\Models\ReleaseNote::query()->exists()) {
+                    return true;
+                }
+
+                (new ReleaseNotesSeeder())->run();
+
+                return true;
+            });
+
         } catch (\Throwable $e) {
         }
 

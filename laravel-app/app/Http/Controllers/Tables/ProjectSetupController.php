@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Tables;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectSetupOption;
+use App\Models\AuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -52,57 +54,81 @@ class ProjectSetupController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'category' => ['required', 'string', Rule::in(self::CATEGORIES)],
-            'name' => ['required', 'string', 'max:255', Rule::unique('project_setup_options', 'name')->where(fn ($q) => $q->where('category', $request->input('category')))],
-            'status' => ['required', 'string', Rule::in(['Active', 'Inactive'])],
-        ]);
+        return DB::transaction(function () use ($request) {
+            $category = $request->input('category');
 
-        ProjectSetupOption::query()->create([
-            'category' => $data['category'],
-            'name' => $data['name'],
-            'status' => $data['status'],
-        ]);
+            $data = $request->validate([
+                'category' => ['required', 'string', Rule::in(self::CATEGORIES)],
+                'name' => ['required', 'string', 'max:255', Rule::unique('project_setup_options', 'name')->where(fn ($q) => $q->where('category', $category))],
+                'status' => ['required', 'string', Rule::in(['Active', 'Inactive'])],
+            ]);
 
-        return redirect()->route('tables.project-setup.index', ['category' => $data['category']]);
+            $option = ProjectSetupOption::query()->create([
+                'category' => $data['category'],
+                'name' => $data['name'],
+                'status' => $data['status'],
+            ]);
+
+            AuditLog::record($request, 'create', ProjectSetupOption::class, (string) $option->id, null, $option->fresh()->toArray(), [
+                'setup_category' => $option->category,
+            ]);
+
+            return redirect()->route('tables.project-setup.index', ['category' => $data['category']]);
+        });
     }
 
     public function update(Request $request, ProjectSetupOption $option): RedirectResponse
     {
-        $category = $request->input('category');
+        return DB::transaction(function () use ($request, $option) {
+            $category = $request->input('category');
 
-        $data = $request->validate([
-            'category' => ['required', 'string', Rule::in(self::CATEGORIES)],
-            'name' => ['required', 'string', 'max:255', Rule::unique('project_setup_options', 'name')->where(fn ($q) => $q->where('category', $category))->ignore($option->id)],
-            'status' => ['required', 'string', Rule::in(['Active', 'Inactive'])],
-        ]);
+            $data = $request->validate([
+                'category' => ['required', 'string', Rule::in(self::CATEGORIES)],
+                'name' => ['required', 'string', 'max:255', Rule::unique('project_setup_options', 'name')->where(fn ($q) => $q->where('category', $category))->ignore($option->id)],
+                'status' => ['required', 'string', Rule::in(['Active', 'Inactive'])],
+            ]);
 
-        $inUse = $this->optionInUse($option->category, $option->name);
-        if ($inUse && ($data['category'] !== $option->category || $data['name'] !== $option->name)) {
-            return back()->withErrors(['name' => 'Tidak bisa mengubah Category/Name karena option sudah dipakai di data Projects.']);
-        }
+            $inUse = $this->optionInUse($option->category, $option->name);
+            if ($inUse && ($data['category'] !== $option->category || $data['name'] !== $option->name)) {
+                return back()->withErrors(['name' => 'Tidak bisa mengubah Category/Name karena option sudah dipakai di data Projects.']);
+            }
 
-        $option->update([
-            'category' => $data['category'],
-            'name' => $data['name'],
-            'status' => $data['status'],
-        ]);
+            $before = $option->fresh()->toArray();
 
-        return redirect()->route('tables.project-setup.index', ['category' => $data['category']]);
+            $option->update([
+                'category' => $data['category'],
+                'name' => $data['name'],
+                'status' => $data['status'],
+            ]);
+
+            $after = $option->fresh()->toArray();
+            AuditLog::record($request, 'update', ProjectSetupOption::class, (string) $option->id, $before, $after, [
+                'setup_category' => $after['category'] ?? null,
+            ]);
+
+            return redirect()->route('tables.project-setup.index', ['category' => $data['category']]);
+        });
     }
 
     public function destroy(Request $request, ProjectSetupOption $option): RedirectResponse
     {
-        $category = $option->category;
+        return DB::transaction(function () use ($request, $option) {
+            $category = $option->category;
 
-        if ($this->optionInUse($option->category, $option->name)) {
-            return redirect()->route('tables.project-setup.index', ['category' => $category])
-                ->withErrors(['delete' => 'Tidak bisa menghapus option karena sudah dipakai di data Projects. Set status ke Inactive saja.']);
-        }
+            if ($this->optionInUse($option->category, $option->name)) {
+                return redirect()->route('tables.project-setup.index', ['category' => $category])
+                    ->withErrors(['delete' => 'Tidak bisa menghapus option karena sudah dipakai di data Projects. Set status ke Inactive saja.']);
+            }
 
-        $option->delete();
+            $before = $option->fresh()->toArray();
+            $optionId = (string) $option->id;
+            $option->delete();
+            AuditLog::record($request, 'delete', ProjectSetupOption::class, $optionId, $before, null, [
+                'setup_category' => $before['category'] ?? null,
+            ]);
 
-        return redirect()->route('tables.project-setup.index', ['category' => $category]);
+            return redirect()->route('tables.project-setup.index', ['category' => $category]);
+        });
     }
 
     private function usedValuesForCategory(string $category): array

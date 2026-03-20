@@ -4,11 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PartnerSetupOption extends Model
+class TimeBoxingSetupOption extends Model
 {
     protected $fillable = [
         'category',
-        'parent_name',
         'name',
         'status',
     ];

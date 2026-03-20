@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ReleaseNote;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -31,6 +32,16 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            'releaseNotes' => fn () => ReleaseNote::query()
+                ->orderByDesc('released_on')
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn (ReleaseNote $n) => [
+                    'version' => $n->version,
+                    'date' => $n->released_on?->toDateString(),
+                    'sections' => $n->data['sections'] ?? [],
+                ])
+                ->values(),
             'auth' => [
                 'user' => $request->user(),
             ],

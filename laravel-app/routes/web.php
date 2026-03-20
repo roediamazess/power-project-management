@@ -6,6 +6,9 @@ use App\Http\Controllers\Tables\PartnersController;
 use App\Http\Controllers\Tables\PartnerSetupController;
 use App\Http\Controllers\Tables\ProjectsController;
 use App\Http\Controllers\Tables\ProjectSetupController;
+use App\Http\Controllers\Tables\AuditLogsController;
+use App\Http\Controllers\Tables\TimeBoxingSetupController;
+use App\Http\Controllers\Tables\TimeBoxingsController;
 use App\Support\TemplatePage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Route;
@@ -37,7 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/tables/partner-setup', [PartnerSetupController::class, 'store'])->middleware('permission:partner_setup.create')->name('tables.partner-setup.store');
     Route::put('/tables/partner-setup/{option}', [PartnerSetupController::class, 'update'])->middleware('permission:partner_setup.update')->name('tables.partner-setup.update');
     Route::delete('/tables/partner-setup/{option}', [PartnerSetupController::class, 'destroy'])->middleware('permission:partner_setup.delete')->name('tables.partner-setup.destroy');
-Route::get('/tables/projects', [ProjectsController::class, 'index'])->middleware('permission:projects.view')->name('tables.projects.index');
+    Route::get('/tables/projects', [ProjectsController::class, 'index'])->middleware('permission:projects.view')->name('tables.projects.index');
     Route::post('/tables/projects', [ProjectsController::class, 'store'])->middleware('permission:projects.create')->name('tables.projects.store');
     Route::put('/tables/projects/{project}', [ProjectsController::class, 'update'])->middleware('permission:projects.update')->name('tables.projects.update');
     Route::delete('/tables/projects/{project}', [ProjectsController::class, 'destroy'])->middleware('permission:projects.delete')->name('tables.projects.destroy');
@@ -45,6 +48,18 @@ Route::get('/tables/projects', [ProjectsController::class, 'index'])->middleware
     Route::post('/tables/project-setup', [ProjectSetupController::class, 'store'])->middleware('permission:project_setup.create')->name('tables.project-setup.store');
     Route::put('/tables/project-setup/{option}', [ProjectSetupController::class, 'update'])->middleware('permission:project_setup.update')->name('tables.project-setup.update');
     Route::delete('/tables/project-setup/{option}', [ProjectSetupController::class, 'destroy'])->middleware('permission:project_setup.delete')->name('tables.project-setup.destroy');
+    Route::get('/tables/time-boxing', [TimeBoxingsController::class, 'index'])->middleware('permission:time_boxing.view')->name('tables.time-boxing.index');
+    Route::post('/tables/time-boxing', [TimeBoxingsController::class, 'store'])->middleware('permission:time_boxing.create')->name('tables.time-boxing.store');
+    Route::put('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'update'])->middleware('permission:time_boxing.update')->name('tables.time-boxing.update');
+    Route::delete('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'destroy'])->middleware('permission:time_boxing.delete')->name('tables.time-boxing.destroy');
+
+    Route::get('/tables/time-boxing-setup', [TimeBoxingSetupController::class, 'index'])->middleware('permission:time_boxing_setup.view')->name('tables.time-boxing-setup.index');
+    Route::post('/tables/time-boxing-setup', [TimeBoxingSetupController::class, 'store'])->middleware('permission:time_boxing_setup.create')->name('tables.time-boxing-setup.store');
+    Route::put('/tables/time-boxing-setup/{option}', [TimeBoxingSetupController::class, 'update'])->middleware('permission:time_boxing_setup.update')->name('tables.time-boxing-setup.update');
+    Route::delete('/tables/time-boxing-setup/{option}', [TimeBoxingSetupController::class, 'destroy'])->middleware('permission:time_boxing_setup.delete')->name('tables.time-boxing-setup.destroy');
+
+    Route::get('/tables/audit-logs', [AuditLogsController::class, 'index'])->middleware('permission:audit_logs.view')->name('tables.audit-logs.index');
+    Route::get('/tables/audit-logs/{auditLog}', [AuditLogsController::class, 'show'])->middleware('permission:audit_logs.view')->name('tables.audit-logs.show');
 
 
     Route::get('/projects', function () {

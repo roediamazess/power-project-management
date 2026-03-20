@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tables;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\Project;
+use App\Models\AuditLog;
 use App\Models\ProjectSetupOption;
 use App\Models\ProjectPicAssignment;
 use App\Models\User;
@@ -13,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -47,6 +49,7 @@ class ProjectsController extends Controller
             ->get()
             ->map(fn (Project $p) => [
                 'id' => $p->id,
+                'no' => $p->no,
                 'cnc_id' => $p->cnc_id,
                 'pic_user_id' => $p->pic_user_id,
                 'pic_name' => $p->pic_name,
@@ -145,8 +148,13 @@ class ProjectsController extends Controller
         $picAssignments = $this->normalizePicAssignments($data);
         unset($data['pic_assignments']);
 
-        $project = Project::query()->create($this->enrichAndCompute($data));
-        $this->syncPicAssignments($project, $picAssignments);
+        DB::transaction(function () use ($request, $data, $picAssignments) {
+            $project = Project::query()->create($this->enrichAndCompute($data));
+            $this->syncPicAssignments($project, $picAssignments, $request);
+
+            $after = $this->projectSnapshot($project->fresh());
+            AuditLog::record($request, 'create', Project::class, (string) $project->id, null, $after);
+        });
 
         return redirect()->route('tables.projects.index');
     }
@@ -158,15 +166,35 @@ class ProjectsController extends Controller
         $picAssignments = $this->normalizePicAssignments($data);
         unset($data['pic_assignments']);
 
-        $project->update($this->enrichAndCompute($data));
-        $this->syncPicAssignments($project, $picAssignments);
+        DB::transaction(function () use ($request, $project, $data, $picAssignments) {
+            $before = $this->projectSnapshot($project->fresh());
+
+            $project->update($this->enrichAndCompute($data));
+            $this->syncPicAssignments($project, $picAssignments, $request);
+
+            $after = $this->projectSnapshot($project->fresh());
+            AuditLog::record($request, 'update', Project::class, (string) $project->id, $before, $after);
+        });
 
         return redirect()->route('tables.projects.index');
     }
 
     public function destroy(Request $request, Project $project): RedirectResponse
     {
-        $project->delete();
+        DB::transaction(function () use ($request, $project) {
+            $before = $this->projectSnapshot($project->fresh());
+
+            $assignments = $project->picAssignments()->get();
+            foreach ($assignments as $a) {
+                AuditLog::record($request, 'delete', ProjectPicAssignment::class, (string) $a->id, $a->toArray(), null, [
+                    'project_id' => (string) $project->id,
+                ]);
+            }
+
+            $projectId = (string) $project->id;
+            $project->delete();
+            AuditLog::record($request, 'delete', Project::class, $projectId, $before, null);
+        });
 
         return redirect()->route('tables.projects.index');
     }
@@ -317,8 +345,16 @@ class ProjectsController extends Controller
         return [];
     }
 
-    private function syncPicAssignments(Project $project, array $assignments): void
+    private function syncPicAssignments(Project $project, array $assignments, Request $request): void
     {
+        $beforeAssignments = $project->picAssignments()->get();
+
+        foreach ($beforeAssignments as $a) {
+            AuditLog::record($request, 'delete', ProjectPicAssignment::class, (string) $a->id, $a->toArray(), null, [
+                'project_id' => (string) $project->id,
+            ]);
+        }
+
         $project->picAssignments()->delete();
 
         foreach ($assignments as $a) {
@@ -327,13 +363,17 @@ class ProjectsController extends Controller
                 $user = User::query()->find($a['pic_user_id']);
             }
 
-            ProjectPicAssignment::query()->create([
+            $created = ProjectPicAssignment::query()->create([
                 'project_id' => $project->id,
                 'pic_user_id' => $a['pic_user_id'] ?? null,
                 'pic_name' => $user?->name,
                 'pic_email' => $user?->email,
                 'start_date' => $a['start_date'] ?? null,
                 'end_date' => $a['end_date'] ?? null,
+            ]);
+
+            AuditLog::record($request, 'create', ProjectPicAssignment::class, (string) $created->id, null, $created->fresh()->toArray(), [
+                'project_id' => (string) $project->id,
             ]);
         }
 
@@ -400,4 +440,27 @@ class ProjectsController extends Controller
             'percentage_of_point' => $percentage,
         ];
     }
+
+
+    private function projectSnapshot(Project $project): array
+    {
+        $project->load(['picAssignments' => fn ($q) => $q->orderBy('start_date')->orderBy('id')]);
+
+        $base = $project->toArray();
+
+        $base['pic_assignments'] = $project->picAssignments
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'pic_user_id' => $a->pic_user_id,
+                'pic_name' => $a->pic_name,
+                'pic_email' => $a->pic_email,
+                'start_date' => $a->start_date?->toDateString(),
+                'end_date' => $a->end_date?->toDateString(),
+            ])
+            ->values()
+            ->all();
+
+        return $base;
+    }
+
 }

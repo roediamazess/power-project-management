@@ -3,29 +3,23 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
 
-export default function PartnerSetupIndex({ category, categories, options, areas, pageSearchQuery }) {
+export default function TimeBoxingSetupIndex({ category, categories, options, pageSearchQuery }) {
     const pageErrors = usePage().props.errors ?? {};
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
-    const editingOption = useMemo(() => {
-        if (!editingId) return null;
-        return (options ?? []).find((o) => o.id === editingId) ?? null;
-    }, [editingId, options]);
-
     const filteredOptions = useMemo(() => {
-        return filterByQuery(options ?? [], pageSearchQuery, (o) => [o.id, o.name, o.category, o.parent_name]);
+        return filterByQuery(options ?? [], pageSearchQuery, (o) => [o.id, o.name, o.category, o.status]);
     }, [options, pageSearchQuery]);
 
     const { data, setData, post, put, delete: destroy, processing, errors, reset, clearErrors } = useForm({
-        category: category ?? 'implementation_type',
-        parent_name: '',
+        category: category ?? 'type',
         name: '',
         status: 'Active',
     });
 
     useEffect(() => {
-        setData('category', category ?? 'implementation_type');
+        setData('category', category ?? 'type');
     }, [category]);
 
     useEffect(() => {
@@ -41,14 +35,14 @@ export default function PartnerSetupIndex({ category, categories, options, areas
         setEditingId(null);
         clearErrors();
         reset();
-        setData({ category: category ?? 'implementation_type', parent_name: '', name: '', status: 'Active' });
+        setData({ category: category ?? 'type', name: '', status: 'Active' });
         setShowModal(true);
     };
 
     const openEdit = (o) => {
         setEditingId(o.id);
         clearErrors();
-        setData({ category: o.category, parent_name: o.parent_name ?? '', name: o.name, status: o.status ?? 'Active' });
+        setData({ category: o.category, name: o.name, status: o.status ?? 'Active' });
         setShowModal(true);
     };
 
@@ -60,15 +54,16 @@ export default function PartnerSetupIndex({ category, categories, options, areas
 
     const submit = (e) => {
         e.preventDefault();
+
         if (editingId) {
-            put(route('tables.partner-setup.update', { option: editingId }), {
+            put(route('tables.time-boxing-setup.update', { option: editingId }), {
                 preserveScroll: true,
                 onSuccess: () => closeModal(),
             });
             return;
         }
 
-        post(route('tables.partner-setup.store'), {
+        post(route('tables.time-boxing-setup.store'), {
             preserveScroll: true,
             onSuccess: () => closeModal(),
         });
@@ -76,7 +71,7 @@ export default function PartnerSetupIndex({ category, categories, options, areas
 
     const doDelete = (o) => {
         if (!window.confirm(`Delete option: ${o.name}?`)) return;
-        destroy(route('tables.partner-setup.destroy', { option: o.id }), {
+        destroy(route('tables.time-boxing-setup.destroy', { option: o.id }), {
             preserveScroll: true,
         });
     };
@@ -85,14 +80,14 @@ export default function PartnerSetupIndex({ category, categories, options, areas
 
     return (
         <>
-            <Head title="Partner Setup" />
+            <Head title="Time Boxing Setup" />
 
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header">
                             <div>
-                                <h4 className="card-title mb-0">Tables &gt; Partner Setup</h4>
+                                <h4 className="card-title mb-0">Tables &gt; Time Boxing Setup</h4>
                                 <p className="mb-0 text-muted">Category: {categoryLabel(category)}</p>
                             </div>
                             <div className="d-flex gap-2">
@@ -103,15 +98,14 @@ export default function PartnerSetupIndex({ category, categories, options, areas
                         </div>
 
                         <div className="card-body">
-                            {pageErrors.delete ? (
-                                <div className="alert alert-warning">{pageErrors.delete}</div>
-                            ) : null}
+                            {pageErrors.delete ? <div className="alert alert-warning">{pageErrors.delete}</div> : null}
+
                             <div className="d-flex flex-wrap gap-2 mb-3">
                                 {(categories ?? []).map((c) => (
                                     <Link
                                         key={c.key}
                                         className={`btn btn-sm ${c.key === category ? 'btn-primary' : 'btn-outline-primary'}`}
-                                        href={route('tables.partner-setup.index', { category: c.key })}
+                                        href={route('tables.time-boxing-setup.index', { category: c.key })}
                                         preserveScroll
                                     >
                                         {c.label}
@@ -124,7 +118,6 @@ export default function PartnerSetupIndex({ category, categories, options, areas
                                     <thead>
                                         <tr>
                                             <th style={{ width: 80 }}>ID</th>
-                                            {category === 'sub_area' ? <th style={{ width: 220 }}>Area</th> : null}
                                             <th>Name</th>
                                             <th style={{ width: 120 }}>Status</th>
                                             <th style={{ width: 160 }} />
@@ -133,15 +126,15 @@ export default function PartnerSetupIndex({ category, categories, options, areas
                                     <tbody>
                                         {filteredOptions.length === 0 ? (
                                             <tr>
-                                                <td colSpan={category === "sub_area" ? 5 : 4} className="text-center text-muted">
+                                                <td colSpan={4} className="text-center text-muted">
                                                     No options found
                                                 </td>
                                             </tr>
                                         ) : null}
+
                                         {filteredOptions.map((o) => (
                                             <tr key={o.id}>
                                                 <td>{o.id}</td>
-                                                {category === "sub_area" ? <td>{o.parent_name ?? "-"}</td> : null}
                                                 <td>{o.name}</td>
                                                 <td>
                                                     <span className={`badge ${o.status === 'Inactive' ? 'bg-secondary' : 'bg-success'}`}>{o.status ?? 'Active'}</span>
@@ -180,11 +173,7 @@ export default function PartnerSetupIndex({ category, categories, options, areas
                                     <div className="modal-body">
                                         <div className="mb-3">
                                             <label className="text-black font-w600 form-label required">Category</label>
-                                            <select
-                                                className={`form-select ${errors.category ? 'is-invalid' : ''}`}
-                                                value={data.category}
-                                                onChange={(e) => setData('category', e.target.value)}
-                                            >
+                                            <select className={`form-select ${errors.category ? 'is-invalid' : ''}`} value={data.category} onChange={(e) => setData('category', e.target.value)}>
                                                 {(categories ?? []).map((c) => (
                                                     <option key={c.key} value={c.key}>
                                                         {c.label}
@@ -194,48 +183,20 @@ export default function PartnerSetupIndex({ category, categories, options, areas
                                             {errors.category ? <div className="invalid-feedback">{errors.category}</div> : null}
                                         </div>
 
-                                                                                {data.category === 'sub_area' ? (
-                                            <div className="mb-3">
-                                                <label className="text-black font-w600 form-label required">Area</label>
-                                                <select
-                                                    className={`form-select ${errors.parent_name ? 'is-invalid' : ''}`}
-                                                    value={data.parent_name}
-                                                    onChange={(e) => setData('parent_name', e.target.value)}
-                                                >
-                                                    <option value="">-</option>
-                                                    {(areas ?? []).map((a) => (
-                                                        <option key={a} value={a}>
-                                                            {a}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                {errors.parent_name ? <div className="invalid-feedback">{errors.parent_name}</div> : null}
-                                            </div>
-                                        ) : null}
-
-<div className="mb-3">
+                                        <div className="mb-3">
                                             <label className="text-black font-w600 form-label required">Name</label>
-                                            <input
-                                                className={`form-control ${errors.name ? 'is-invalid' : ''}`}
-                                                value={data.name}
-                                                onChange={(e) => setData('name', e.target.value)}
-                                            />
+                                            <input className={`form-control ${errors.name ? 'is-invalid' : ''}`} value={data.name} onChange={(e) => setData('name', e.target.value)} />
                                             {errors.name ? <div className="invalid-feedback">{errors.name}</div> : null}
                                         </div>
 
                                         <div className="mb-3">
                                             <label className="text-black font-w600 form-label required">Status</label>
-                                            <select
-                                                className={`form-select ${errors.status ? 'is-invalid' : ''}`}
-                                                value={data.status}
-                                                onChange={(e) => setData('status', e.target.value)}
-                                            >
+                                            <select className={`form-select ${errors.status ? 'is-invalid' : ''}`} value={data.status} onChange={(e) => setData('status', e.target.value)}>
                                                 <option value="Active">Active</option>
                                                 <option value="Inactive">Inactive</option>
                                             </select>
                                             {errors.status ? <div className="invalid-feedback">{errors.status}</div> : null}
                                         </div>
-
                                     </div>
 
                                     <div className="modal-footer">
@@ -250,6 +211,7 @@ export default function PartnerSetupIndex({ category, categories, options, areas
                             </div>
                         </div>
                     </div>
+
                     <div className="modal-backdrop fade show" onClick={closeModal} />
                 </>
             ) : null}
@@ -257,4 +219,4 @@ export default function PartnerSetupIndex({ category, categories, options, areas
     );
 }
 
-PartnerSetupIndex.layout = (page) => <AuthenticatedLayout header="Partner Setup">{page}</AuthenticatedLayout>;
+TimeBoxingSetupIndex.layout = (page) => <AuthenticatedLayout header="Time Boxing Setup">{page}</AuthenticatedLayout>;

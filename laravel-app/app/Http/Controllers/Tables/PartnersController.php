@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Tables;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\PartnerSetupOption;
+use App\Models\AuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,7 +78,7 @@ class PartnersController extends Controller
             ->orderBy('name')
             ->get()
             ->groupBy('category')
-            ->map(fn ($items) => $items->map(fn ($o) => ['name' => $o->name, 'status' => $o->status])->values())
+            ->map(fn ($items) => $items->map(fn ($o) => ['name' => $o->name, 'status' => $o->status, 'parent_name' => $o->parent_name])->values())
             ->toArray();
 
         return Inertia::render('Tables/Partners/Index', [
@@ -90,7 +93,10 @@ class PartnersController extends Controller
     {
         $data = $this->validatePartner($request);
 
-        Partner::query()->create($data);
+        DB::transaction(function () use ($request, $data) {
+            $partner = Partner::query()->create($data);
+            AuditLog::record($request, 'create', Partner::class, (string) $partner->id, null, $partner->fresh()->toArray());
+        });
 
         return redirect()->route('tables.partners.index');
     }
@@ -98,14 +104,25 @@ class PartnersController extends Controller
     public function update(Request $request, Partner $partner): RedirectResponse
     {
         $data = $this->validatePartner($request, $partner);
-        $partner->update($data);
+
+        DB::transaction(function () use ($request, $partner, $data) {
+            $before = $partner->fresh()->toArray();
+            $partner->update($data);
+            $after = $partner->fresh()->toArray();
+            AuditLog::record($request, 'update', Partner::class, (string) $partner->id, $before, $after);
+        });
 
         return redirect()->route('tables.partners.index');
     }
 
     public function destroy(Request $request, Partner $partner): RedirectResponse
     {
-        $partner->delete();
+        DB::transaction(function () use ($request, $partner) {
+            $before = $partner->fresh()->toArray();
+            $partnerId = (string) $partner->id;
+            $partner->delete();
+            AuditLog::record($request, 'delete', Partner::class, $partnerId, $before, null);
+        });
 
         return redirect()->route('tables.partners.index');
     }
@@ -114,7 +131,7 @@ class PartnersController extends Controller
     {
         $id = $partner?->id;
 
-        return $request->validate([
+        $rules = [
             'cnc_id' => ['required', 'string', 'max:50', Rule::unique('partners', 'cnc_id')->ignore($id)],
             'name' => ['required', 'string', 'max:255'],
             'star' => ['nullable', 'integer', Rule::in(self::STAR_OPTIONS)],
@@ -144,6 +161,61 @@ class PartnersController extends Controller
             'last_visit_type' => ['nullable', 'string', 'max:255'],
             'last_project' => ['nullable', 'string', 'max:255'],
             'last_project_type' => ['nullable', 'string', 'max:255'],
-        ]);
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        $validator->after(function ($validator) use ($request, $partner) {
+            $area = $request->input('area');
+            $subArea = $request->input('sub_area');
+
+            if ($subArea && ! $area) {
+                $validator->errors()->add('area', 'Area wajib dipilih jika Sub Area diisi.');
+                return;
+            }
+
+            if ($area) {
+                $areaOption = PartnerSetupOption::query()
+                    ->where('category', 'area')
+                    ->where('name', $area)
+                    ->first();
+
+                if (! $areaOption) {
+                    $validator->errors()->add('area', 'Area tidak valid.');
+                    return;
+                }
+
+                if (($areaOption->status ?? 'Active') !== 'Active') {
+                    $same = $partner && $partner->area === $area;
+                    if (! $same) {
+                        $validator->errors()->add('area', 'Area sudah Inactive.');
+                        return;
+                    }
+                }
+            }
+
+            if ($area && $subArea) {
+                $subAreaOption = PartnerSetupOption::query()
+                    ->where('category', 'sub_area')
+                    ->where('parent_name', $area)
+                    ->where('name', $subArea)
+                    ->first();
+
+                if (! $subAreaOption) {
+                    $validator->errors()->add('sub_area', 'Sub Area tidak valid untuk Area tersebut.');
+                    return;
+                }
+
+                if (($subAreaOption->status ?? 'Active') !== 'Active') {
+                    $same = $partner && $partner->area === $area && $partner->sub_area === $subArea;
+                    if (! $same) {
+                        $validator->errors()->add('sub_area', 'Sub Area sudah Inactive.');
+                        return;
+                    }
+                }
+            }
+        });
+
+        return $validator->validate();
     }
 }

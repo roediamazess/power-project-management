@@ -116,7 +116,8 @@ export default function AuthenticatedLayout({ header, children }) {
     };
 
 
-    const appVersion = 'v1.2603.2';
+    const appVersion = 'v1.2603.3';
+    const releaseNotes = page.props.releaseNotes;
 
     const renderInlineCode = (value) => {
         const text = String(value ?? '');
@@ -125,7 +126,51 @@ export default function AuthenticatedLayout({ header, children }) {
         return parts.map((part, idx) => (idx % 2 === 1 ? <code key={idx}>{part}</code> : <span key={idx}>{part}</span>));
     };
 
-    const versionHistory = [
+    const staticVersionHistory = [
+        {
+            version: 'v1.2603.3',
+            date: '2026-03-20',
+            sections: [
+                {
+                    title: 'Added',
+                    items: [
+                        'Tambahkan module `Projects` (CRUD) sejajar dengan Partners di sidebar.',
+                        'Tambahkan `Tables > Project Setup` untuk mengelola option `Type` dan `Status` (Active/Inactive).',
+                        'Tambahkan dukungan multi PIC per project dengan periode berbeda (table `project_pic_assignments`).',
+                    ],
+                    references: [
+                        'Routes: `routes/web.php`',
+                        'Projects UI: `resources/js/Pages/Tables/Projects/Index.jsx`',
+                        'Project Setup UI: `resources/js/Pages/Tables/ProjectSetup/Index.jsx`',
+                        'Projects controller: `app/Http/Controllers/Tables/ProjectsController.php`',
+                        'Project Setup controller: `app/Http/Controllers/Tables/ProjectSetupController.php`',
+                        'Migrations: `database/migrations/2026_03_19_000006_create_project_setup_options_table.php`, `2026_03_19_000007_create_projects_table.php`, `2026_03_20_000001_create_project_pic_assignments_table.php`',
+                    ],
+                },
+                {
+                    title: 'Fixed',
+                    items: [
+                        'Validasi backend: periode PIC tidak boleh di luar periode Project.',
+                        'Validasi backend: jika PIC dipilih, Start/End pada baris PIC wajib diisi.',
+                    ],
+                    references: [
+                        'Validation: `app/Http/Controllers/Tables/ProjectsController.php`',
+                    ],
+                },
+                {
+                    title: 'Changed',
+                    items: [
+                        'Model data Projects: PIC utama bergeser menjadi ringkasan dari daftar PIC-periode (multi-PIC).',
+                        'UI Projects: input PIC menjadi tabel baris dinamis (Add/Remove) agar history periode lebih jelas.',
+                        'Dokumentasi perubahan dirapikan melalui `CHANGELOG.md`.',
+                    ],
+                    references: [
+                        'Projects UI: `resources/js/Pages/Tables/Projects/Index.jsx`',
+                        'Changelog: `CHANGELOG.md`',
+                    ],
+                },
+            ],
+        },
         {
             version: 'v1.2603.2',
             date: '2026-03-19',
@@ -325,6 +370,8 @@ export default function AuthenticatedLayout({ header, children }) {
             ],
         },
     ];
+
+    const versionHistory = (Array.isArray(releaseNotes) && releaseNotes.length ? releaseNotes : staticVersionHistory);
 
     const headerText = useMemo(() => {
         if (typeof header === 'string') return header;
@@ -840,6 +887,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                     <li><Link href={route('tables.user-management.index')}>User Management</Link></li>
                                     <li><Link href={route('tables.partner-setup.index', { category: 'implementation_type' })}>Partner Setup</Link></li>
                                     <li><Link href={route('tables.project-setup.index', { category: 'type' })}>Project Setup</Link></li>
+                                    <li><Link href={route('tables.time-boxing-setup.index', { category: 'type' })}>Time Boxing Setup</Link></li>
 
                                     <li><Link href={route('template.show', { page: 'table-bootstrap-basic' })}>Bootstrap</Link></li>
                                     <li><Link href={route('template.show', { page: 'table-datatable-basic' })}>Datatable</Link></li>
@@ -855,6 +903,18 @@ export default function AuthenticatedLayout({ header, children }) {
                                 <Link href={route('tables.projects.index')} aria-expanded="false">
                                     <i className="fas fa-clipboard-list" />
                                     <span className="nav-text">Projects</span>
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href={route('tables.time-boxing.index')} aria-expanded="false">
+                                    <i className="fas fa-stopwatch" />
+                                    <span className="nav-text">Time Boxing</span>
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href={route('tables.audit-logs.index')} aria-expanded="false">
+                                    <i className="fas fa-clipboard-check" />
+                                    <span className="nav-text">Audit Logs</span>
                                 </Link>
                             </li>
                             <li>

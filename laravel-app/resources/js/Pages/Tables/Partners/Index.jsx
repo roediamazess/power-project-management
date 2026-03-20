@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
-import { formatDateDdMmmYy } from '@/utils/date';
+import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
 
 const STATUS_BADGE = {
     Active: 'bg-success',
@@ -155,7 +155,7 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
             room: p.room ?? '',
             outlet: p.outlet ?? '',
             status: p.status ?? (statusOptions?.[0] ?? 'Active'),
-            system_live: p.system_live ?? '',
+            system_live: p.system_live ? formatDateDdMmmYy(p.system_live) : '',
             implementation_type: p.implementation_type ?? '',
             system_version: p.system_version ?? '',
             type: p.type ?? '',
@@ -174,7 +174,7 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
             dos_email: p.dos_email ?? '',
             ehk_email: p.ehk_email ?? '',
             fbm_email: p.fbm_email ?? '',
-            last_visit: p.last_visit ?? '',
+            last_visit: p.last_visit ? formatDateDdMmmYy(p.last_visit) : '',
             last_visit_type: p.last_visit_type ?? '',
             last_project: p.last_project ?? '',
             last_project_type: p.last_project_type ?? '',
@@ -194,6 +194,8 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
         const payload = {
             ...data,
             star: data.star === '' ? null : Number(data.star),
+            system_live: parseDateDdMmmYyToIso(data.system_live),
+            last_visit: parseDateDdMmmYyToIso(data.last_visit),
         };
 
         if (editingId) {
@@ -223,24 +225,70 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
 
     const renderSetupOptions = (key, selectedValue) => {
         const items = optionList(key);
-        const active = items.filter((o) => (o.status ?? 'Active') === 'Active').map((o) => o.name);
         const selected = String(selectedValue ?? '');
-        const selectedItem = selected ? items.find((o) => o.name === selected) : null;
-        const selectedInactive = selectedItem && (selectedItem.status ?? 'Active') !== 'Active';
-        const activeFiltered = active.filter((n) => n !== selected);
+
         return (
             <>
                 <option value="">-</option>
-                {selectedInactive ? (
-                    <option value={selected} disabled>
-                        {selected} (Inactive)
+                {items
+                    .map((o) => ({
+                        name: String(o?.name ?? ''),
+                        status: String(o?.status ?? 'Active'),
+                        parent_name: o?.parent_name ?? null,
+                    }))
+                    .filter((o) => o.name !== '')
+                    .map((o) => {
+                        const isActive = o.status === 'Active';
+                        const isSelected = o.name === selected;
+                        if (!isActive && !isSelected) return null;
+
+                        const label = !isActive ? `${o.name} (Inactive)` : o.name;
+                        return (
+                            <option key={`${key}||${o.parent_name ?? ''}||${o.name}||${o.status}`} value={o.name} disabled={!isActive}>
+                                {label}
+                            </option>
+                        );
+                    })}
+            </>
+        );
+    };
+
+
+    const renderSubAreaOptions = (areaValue, selectedValue) => {
+        const area = String(areaValue ?? '');
+        const selected = String(selectedValue ?? '');
+
+        const items = optionList('sub_area')
+            .map((o) => ({
+                name: String(o?.name ?? ''),
+                status: String(o?.status ?? 'Active'),
+                parent_name: String(o?.parent_name ?? ''),
+            }))
+            .filter((o) => o.name !== '' && o.parent_name === area);
+
+        const selectedItem = selected ? items.find((o) => o.name === selected) : null;
+        const selectedMismatch = selected && !selectedItem;
+
+        return (
+            <>
+                <option value="">-</option>
+                {selectedMismatch ? (
+                    <option key={`sub_area||mismatch||${selected}`} value={selected} disabled>
+                        {selected} (Mismatch)
                     </option>
                 ) : null}
-                {activeFiltered.map((n) => (
-                    <option key={n} value={n}>
-                        {n}
-                    </option>
-                ))}
+                {items.map((o) => {
+                    const isActive = o.status === 'Active';
+                    const isSelected = o.name === selected;
+                    if (!isActive && !isSelected) return null;
+
+                    const label = !isActive ? `${o.name} (Inactive)` : o.name;
+                    return (
+                        <option key={`sub_area||${o.parent_name}||${o.name}||${o.status}`} value={o.name} disabled={!isActive}>
+                            {label}
+                        </option>
+                    );
+                })}
             </>
         );
     };
@@ -453,7 +501,7 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
                                                 <div className="mb-3">
                                                     <label className="text-black font-w600 form-label">System Live</label>
                                                     <input
-                                                        type="date"
+                                                        type="text" placeholder="dd Mmm yy"
                                                         className={`form-control ${errors.system_live ? 'is-invalid' : ''}`}
                                                         value={data.system_live}
                                                         onChange={(e) => setData('system_live', e.target.value)}
@@ -537,7 +585,7 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
                                                     <select
                                                         className={`form-select ${errors.area ? 'is-invalid' : ''}`}
                                                         value={data.area}
-                                                        onChange={(e) => setData('area', e.target.value)}
+                                                        onChange={(e) => { setData('area', e.target.value); setData('sub_area', ''); }}
                                                     >
                                                         {renderSetupOptions('area', data.area)}
                                                     </select>
@@ -552,8 +600,9 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
                                                         className={`form-select ${errors.sub_area ? 'is-invalid' : ''}`}
                                                         value={data.sub_area}
                                                         onChange={(e) => setData('sub_area', e.target.value)}
+                                                        disabled={!data.area}
                                                     >
-                                                        {renderSetupOptions('sub_area', data.sub_area)}
+                                                        {renderSubAreaOptions(data.area, data.sub_area)}
                                                     </select>
                                                     {errors.sub_area ? <div className="invalid-feedback">{errors.sub_area}</div> : null}
                                                 </div>
@@ -592,8 +641,8 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
                                             <div className="col-lg-3">
                                                 <div className="mb-3">
                                                     <label className="text-black font-w600 form-label">Last Visit</label>
-                                                    <input type="date" className="form-control" value={data.last_visit} onChange={(e) => setData('last_visit', e.target.value)} />
-                                                </div>
+                                                    <input type="text" className={`form-control ${errors.last_visit ? 'is-invalid' : ''}`} placeholder="dd Mmm yy" value={data.last_visit} onChange={(e) => setData('last_visit', e.target.value)} />
+                                                {errors.last_visit ? <div className="invalid-feedback">{errors.last_visit}</div> : null}</div>
                                             </div>
                                             <div className="col-lg-3">
                                                 <div className="mb-3">

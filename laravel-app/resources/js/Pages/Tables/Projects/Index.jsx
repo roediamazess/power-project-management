@@ -2,7 +2,15 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
-import { formatDateDdMmmYy } from '@/utils/date';
+import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
+
+const displayDateValue = (v) => {
+    if (!v) return '';
+    const s = String(v);
+    const d = s.length >= 10 ? s.slice(0, 10) : s;
+    const out = formatDateDdMmmYy(d);
+    return out === '-' ? '' : out;
+};
 
 export default function ProjectsIndex({ projects, partners, users, setupOptions, assignmentOptions, projectInformationOptions, picAssignmentOptions, pageSearchQuery }) {
     const [showModal, setShowModal] = useState(false);
@@ -96,24 +104,26 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
     const renderSetupOptions = (key, selectedValue) => {
         const items = optionList(key);
-        const active = items.filter((o) => (o.status ?? 'Active') === 'Active').map((o) => o.name);
         const selected = String(selectedValue ?? '');
-        const selectedItem = selected ? items.find((o) => o.name === selected) : null;
-        const selectedInactive = selectedItem && (selectedItem.status ?? 'Active') !== 'Active';
-        const activeFiltered = active.filter((n) => n !== selected);
+
         return (
             <>
                 <option value="">-</option>
-                {selectedInactive ? (
-                    <option value={selected} disabled>
-                        {selected} (Inactive)
-                    </option>
-                ) : null}
-                {activeFiltered.map((n) => (
-                    <option key={n} value={n}>
-                        {n}
-                    </option>
-                ))}
+                {items
+                    .map((o) => ({ name: String(o?.name ?? ''), status: String(o?.status ?? 'Active') }))
+                    .filter((o) => o.name !== '')
+                    .map((o) => {
+                        const isActive = o.status === 'Active';
+                        const isSelected = o.name === selected;
+                        if (!isActive && !isSelected) return null;
+
+                        const label = !isActive ? `${o.name} (Inactive)` : o.name;
+                        return (
+                            <option key={`${key}||${o.name}||${o.status}`} value={o.name} disabled={!isActive}>
+                                {label}
+                            </option>
+                        );
+                    })}
             </>
         );
     };
@@ -199,29 +209,29 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
         clearErrors();
         setData({
             cnc_id: p.cnc_id ?? '',
-            pic_assignments: (p.pic_assignments && p.pic_assignments.length ? p.pic_assignments.map((r) => ({ pic_user_id: r.pic_user_id ?? '', start_date: r.start_date ?? '', end_date: r.end_date ?? '' })) : (p.pic_user_id ? [{ pic_user_id: p.pic_user_id, start_date: p.start_date ?? '', end_date: p.end_date ?? '' }] : [{ pic_user_id: '', start_date: '', end_date: '' }])),
+            pic_assignments: (p.pic_assignments && p.pic_assignments.length ? p.pic_assignments.map((r) => ({ pic_user_id: r.pic_user_id ?? '', start_date: r.start_date ? displayDateValue(r.start_date) : '', end_date: r.end_date ? displayDateValue(r.end_date) : '' })) : (p.pic_user_id ? [{ pic_user_id: p.pic_user_id, start_date: p.start_date ? displayDateValue(p.start_date) : '', end_date: p.end_date ? displayDateValue(p.end_date) : '' }] : [{ pic_user_id: '', start_date: '', end_date: '' }])),
             partner_id: p.partner_id ?? '',
             project_name: p.project_name ?? '',
             assignment: p.assignment ?? '',
             project_information: p.project_information ?? (projectInformationOptions?.[1] ?? 'Submission'),
             pic_assignment: p.pic_assignment ?? (picAssignmentOptions?.[1] ?? 'Request'),
             type: p.type ?? '',
-            start_date: p.start_date ?? '',
-            end_date: p.end_date ?? '',
+            start_date: p.start_date ? displayDateValue(p.start_date) : '',
+            end_date: p.end_date ? displayDateValue(p.end_date) : '',
             status: p.status ?? '',
-            handover_official_report: p.handover_official_report ?? '',
+            handover_official_report: p.handover_official_report ? displayDateValue(p.handover_official_report) : '',
             kpi2_pic: p.kpi2_pic ?? '',
-            check_official_report: p.check_official_report ?? '',
+            check_official_report: p.check_official_report ? displayDateValue(p.check_official_report) : '',
             check_days: p.check_days ?? '',
             kpi2_officer: p.kpi2_officer ?? '',
             point_ach: p.point_ach ?? '',
             point_req: p.point_req ?? '',
-            validation_date: p.validation_date ?? '',
+            validation_date: p.validation_date ? displayDateValue(p.validation_date) : '',
             kpi2_okr: p.kpi2_okr ?? '',
             spreadsheet_id: p.spreadsheet_id ?? '',
             spreadsheet_url: p.spreadsheet_url ?? '',
-            activity_sent: p.activity_sent ?? '',
-            s1_estimation_date: p.s1_estimation_date ?? '',
+            activity_sent: p.activity_sent ? displayDateValue(p.activity_sent) : '',
+            s1_estimation_date: p.s1_estimation_date ? displayDateValue(p.s1_estimation_date) : '',
             s1_over_days: p.s1_over_days ?? '',
             s1_count_emails_sent: p.s1_count_emails_sent ?? '',
             s2_email_sent: p.s2_email_sent ?? '',
@@ -243,8 +253,8 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
             ...data,
             pic_assignments: (data.pic_assignments ?? []).map((r) => ({
                 pic_user_id: r.pic_user_id === '' ? null : Number(r.pic_user_id),
-                start_date: r.start_date || null,
-                end_date: r.end_date || null,
+                start_date: (parseDateDdMmmYyToIso(r.start_date) || null),
+                end_date: (parseDateDdMmmYyToIso(r.end_date) || null),
             })),
             partner_id: data.partner_id === '' ? null : Number(data.partner_id),
             point_ach: data.point_ach === '' ? null : Number(data.point_ach),
@@ -252,6 +262,14 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
             assignment: data.assignment === '' ? null : data.assignment,
             type: data.type === '' ? null : data.type,
             status: data.status === '' ? null : data.status,
+            start_date: parseDateDdMmmYyToIso(data.start_date) || null,
+            end_date: parseDateDdMmmYyToIso(data.end_date) || null,
+            handover_official_report: parseDateDdMmmYyToIso(data.handover_official_report) || null,
+            check_official_report: parseDateDdMmmYyToIso(data.check_official_report) || null,
+            validation_date: parseDateDdMmmYyToIso(data.validation_date) || null,
+            activity_sent: parseDateDdMmmYyToIso(data.activity_sent) || null,
+            s1_estimation_date: parseDateDdMmmYyToIso(data.s1_estimation_date) || null,
+
         };
 
         if (editingId) {
@@ -301,7 +319,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
                                 <table className="table table-striped table-responsive-md">
                                     <thead>
                                         <tr>
-                                            <th style={{ width: 180 }}>ID</th>
+                                            <th style={{ width: 80 }}>ID</th>
                                             <th style={{ width: 110 }}>CNC ID</th>
                                             <th>Project</th>
                                             <th style={{ width: 220 }}>Partner</th>
@@ -323,9 +341,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
                                         ) : null}
                                         {filteredProjects.map((p) => (
                                             <tr key={p.id}>
-                                                <td className="text-truncate" style={{ maxWidth: 180 }} title={p.id}>
-                                                    {p.id}
-                                                </td>
+                                                <td title={p.id}>{p.no ?? '-'}</td>
                                                 <td>{p.cnc_id ?? '-'}</td>
                                                 <td className="text-truncate" style={{ maxWidth: 320 }} title={p.project_name ?? ''}>
                                                     {p.project_name ?? '-'}
@@ -435,7 +451,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
                                                                         </td>
                                                                         <td>
                                                                             <input
-                                                                                type="date"
+                                                                                type="text" placeholder="dd Mmm yy"
                                                                                 className={`form-control form-control-sm ${errStart ? 'is-invalid' : ''}`}
                                                                                 value={row.start_date ?? ''}
                                                                                 onChange={(e) => updatePicRow(index, 'start_date', e.target.value)}
@@ -444,7 +460,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
                                                                         </td>
                                                                         <td>
                                                                             <input
-                                                                                type="date"
+                                                                                type="text" placeholder="dd Mmm yy"
                                                                                 className={`form-control form-control-sm ${errEnd ? 'is-invalid' : ''}`}
                                                                                 value={row.end_date ?? ''}
                                                                                 onChange={(e) => updatePicRow(index, 'end_date', e.target.value)}
@@ -516,13 +532,13 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Start Date</label>
-                                                <input type="date" className={`form-control ${errors.start_date ? 'is-invalid' : ''}`} value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.start_date ? 'is-invalid' : ''}`} value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
                                                 {errors.start_date ? <div className="invalid-feedback">{errors.start_date}</div> : null}
                                             </div>
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">End Date</label>
-                                                <input type="date" className={`form-control ${errors.end_date ? 'is-invalid' : ''}`} value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.end_date ? 'is-invalid' : ''}`} value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
                                                 {errors.end_date ? <div className="invalid-feedback">{errors.end_date}</div> : null}
                                             </div>
 
@@ -536,7 +552,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Handover Official Report</label>
-                                                <input type="date" className={`form-control ${errors.handover_official_report ? 'is-invalid' : ''}`} value={data.handover_official_report} onChange={(e) => setData('handover_official_report', e.target.value)} />
+                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.handover_official_report ? 'is-invalid' : ''}`} value={data.handover_official_report} onChange={(e) => setData('handover_official_report', e.target.value)} />
                                                 {errors.handover_official_report ? <div className="invalid-feedback">{errors.handover_official_report}</div> : null}
                                             </div>
 
@@ -548,7 +564,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Check Official Report</label>
-                                                <input type="date" className={`form-control ${errors.check_official_report ? 'is-invalid' : ''}`} value={data.check_official_report} onChange={(e) => setData('check_official_report', e.target.value)} />
+                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.check_official_report ? 'is-invalid' : ''}`} value={data.check_official_report} onChange={(e) => setData('check_official_report', e.target.value)} />
                                                 {errors.check_official_report ? <div className="invalid-feedback">{errors.check_official_report}</div> : null}
                                             </div>
 
@@ -578,7 +594,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Validation Date</label>
-                                                <input type="date" className={`form-control ${errors.validation_date ? 'is-invalid' : ''}`} value={data.validation_date} onChange={(e) => setData('validation_date', e.target.value)} />
+                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.validation_date ? 'is-invalid' : ''}`} value={data.validation_date} onChange={(e) => setData('validation_date', e.target.value)} />
                                                 {errors.validation_date ? <div className="invalid-feedback">{errors.validation_date}</div> : null}
                                             </div>
 
@@ -602,7 +618,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">S1 Estimation Date</label>
-                                                <input type="date" className={`form-control ${errors.s1_estimation_date ? 'is-invalid' : ''}`} value={data.s1_estimation_date} onChange={(e) => setData('s1_estimation_date', e.target.value)} />
+                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.s1_estimation_date ? 'is-invalid' : ''}`} value={data.s1_estimation_date} onChange={(e) => setData('s1_estimation_date', e.target.value)} />
                                                 {errors.s1_estimation_date ? <div className="invalid-feedback">{errors.s1_estimation_date}</div> : null}
                                             </div>
 

@@ -1,5 +1,38 @@
 # Changelog
 
+## v1.2603.3 (2026-03-20)
+
+### Added
+- Tambah module **Projects** (CRUD) di sidebar sejajar Partners.
+- Tambah **Tables > Project Setup** untuk option **Type** dan **Status** (Active/Inactive).
+- Tambah dukungan multi **PIC per periode** per project (tabel `project_pic_assignments`).
+- Tambah module **Time Boxing** (CRUD) di sidebar sejajar Partners/Projects.
+- Tambah **Tables > Time Boxing Setup > Type** untuk mengelola option Type (Active/Inactive).
+- Tambah halaman **Audit Logs** (read-only) dengan filter Module/Action/Date/Search + view detail JSON.
+- Tambah tabel `audit_logs` untuk mencatat CRUD (Projects/Partners/Setup/Time Boxing) termasuk PIC assignments.
+- Tambah kolom nomor otomatis untuk **Projects** dan tampilkan sebagai ID yang lebih simple.
+
+### Fixed
+- Validasi: periode PIC tidak boleh di luar periode Project.
+- Validasi: jika PIC dipilih, Start/End pada baris PIC wajib diisi.
+- Audit trail: semua create/update/delete utama sekarang tercatat konsisten ke PostgreSQL (via transaksi).
+- Time Boxing: `completed_at` otomatis terisi saat status jadi Completed dan otomatis terhapus saat status berubah.
+- Time Boxing: perbaiki format datepicker agar tidak menghilangkan tahun pada input.
+
+### Changed
+- Model Projects: PIC utama menjadi ringkasan dari daftar PIC-periode (multi-PIC).
+- UI Projects: input PIC menjadi tabel baris dinamis (Add/Remove) untuk beberapa PIC.
+- Sidebar: urutan menu dirapikan menjadi Partners, Projects, Time Boxing, Audit Logs.
+- UI Projects & Time Boxing: kolom ID ditampilkan sebagai nomor otomatis (bukan UUID).
+- UI Form Partners/Projects/Time Boxing: input tanggal distandarkan menjadi format `dd Mmm yy`.
+- UI Time Boxing: tambah filter harian (status/priority/type/partner/project).
+- Time Boxing: pagination + filter dijalankan server-side (lebih cepat untuk data besar).
+- UI Time Boxing: filter Info Date From/To memakai calendar picker (tidak perlu ketik manual).
+- UI Time Boxing: tampilan tanggal picker distandarkan `dd Mmm yy` (tahun tidak hilang).
+- UI Time Boxing: format Completed Date menjadi `dd Mmm yy - Day, hh:mm:ss`.
+
+---
+
 ## v1.2603.2 (2026-03-19)
 
 ### Deployment & Assets
@@ -21,4 +54,4 @@
 
 ---
 
-Catatan: versi aplikasi tetap **v1.2603.2** (tidak bump) dan log perubahan terbaru dicatat di versi ini.
+Catatan: versi aplikasi sekarang **v1.2603.3**.
