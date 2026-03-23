@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
 import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
@@ -15,7 +15,7 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
-    const [q, setQ] = useState(filters?.q ?? '');
+    const [statusFilter, setStatusFilter] = useState(filters?.status ?? 'Active');
 
     const rows = partners?.data ?? [];
 
@@ -59,13 +59,27 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
         ]);
     }, [rows, pageSearchQuery]);
 
-    const applyHref = useMemo(() => {
-        const params = {};
-        if (q && q.trim()) params.q = q.trim();
-        return route('tables.partners.index', params);
-    }, [q]);
+    useEffect(() => {
+        setStatusFilter(filters?.status ?? 'Active');
+    }, [filters?.status]);
 
-    const resetHref = route('tables.partners.index');
+    useEffect(() => {
+        const q = String(pageSearchQuery ?? '').trim();
+        const currentQ = String(filters?.q ?? '').trim();
+        const currentStatus = String(filters?.status ?? 'Active');
+        const nextStatus = String(statusFilter ?? 'Active');
+
+        if (q === currentQ && nextStatus === currentStatus) return;
+
+        const t = setTimeout(() => {
+            const params = {};
+            if (q) params.q = q;
+            if (nextStatus && nextStatus !== 'Active') params.status = nextStatus;
+            router.get(route('tables.partners.index', params), {}, { preserveScroll: true, preserveState: true, replace: true });
+        }, 350);
+
+        return () => clearTimeout(t);
+    }, [filters?.q, filters?.status, pageSearchQuery, statusFilter]);
 
 
     const {
@@ -319,25 +333,36 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
                                 <h4 className="card-title mb-0">Tables &gt; Partners</h4>
                                 <p className="mb-0 text-muted">Showing {partners?.from ?? 0}-{partners?.to ?? 0} of {partners?.total ?? 0} (On this page: {filteredPartners.length})</p>
                             </div>
-                            <div className="d-flex flex-wrap gap-2">
-                                <Link href={applyHref} className="btn btn-primary">
-                                    Apply
-                                </Link>
-                                <Link href={resetHref} className="btn btn-outline-secondary">
-                                    Reset
-                                </Link>
-                                <button type="button" className="btn btn-success" onClick={openCreate}>
-                                    New
-                                </button>
-                            </div>
+                                <div className="d-flex flex-wrap gap-2">
+                                    <button type="button" className="btn btn-success" onClick={openCreate}>
+                                        New
+                                    </button>
+                                </div>
                         </div>
 
                         <div className="card-body">
                             <div className="row mb-3">
-                                <div className="col-12">
-                                    <label className="text-black font-w600 form-label">Search (server)</label>
-                                    <input type="text" className="form-control" value={q} onChange={(e) => setQ(e.target.value)} placeholder="cnc id, name, email, area..." />
-                                    <small className="text-muted">Search ini memfilter via server saat klik Apply. Search di header sidebar tetap memfilter data yang sedang tampil.</small>
+                                <div className="col-12 d-flex gap-2 align-items-center">
+                                    <div className="btn-group" role="group" aria-label="Status filter">
+                                        {['All','Active','Freeze','Inactive'].map((s) => {
+                                            const params = {};
+                                            if (pageSearchQuery && String(pageSearchQuery).trim()) params.q = String(pageSearchQuery).trim();
+                                            if (s !== 'Active') params.status = s;
+                                            const href = route('tables.partners.index', params);
+                                            const active = statusFilter === s;
+                                            return (
+                                                <Link
+                                                    key={s}
+                                                    href={href}
+                                                    className={`btn btn-sm ${active ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                                    onClick={() => setStatusFilter(s)}
+                                                >
+                                                    {s === 'All' ? 'All Status' : s}
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                    <small className="text-muted ms-2">Default tampilan: Active</small>
                                 </div>
                             </div>
 

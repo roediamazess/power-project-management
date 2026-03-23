@@ -38,9 +38,11 @@ class PartnersController extends Controller
     {
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:200'],
+            'status' => ['nullable', 'string', Rule::in(array_merge(self::STATUS_OPTIONS, ['All']))],
         ]);
 
         $q = trim((string) ($data['q'] ?? ''));
+        $status = (string) ($data['status'] ?? 'Active');
 
         $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
 
@@ -64,6 +66,10 @@ class PartnersController extends Controller
             });
         }
 
+        if ($status !== '' && $status !== 'All') {
+            $query->where('status', $status);
+        }
+
         $partners = $query->paginate(50)->withQueryString();
         $partners = $this->mapPaginator($partners);
 
@@ -80,9 +86,10 @@ class PartnersController extends Controller
             'partners' => $partners,
             'filters' => [
                 'q' => $q,
+                'status' => $status,
             ],
             'starOptions' => self::STAR_OPTIONS,
-            'statusOptions' => self::STATUS_OPTIONS,
+            'statusOptions' => array_merge(['All'], self::STATUS_OPTIONS),
             'setupOptions' => $setupOptions,
         ]);
     }

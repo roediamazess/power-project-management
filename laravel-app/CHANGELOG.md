@@ -5,12 +5,15 @@
 ### Added
 - Tambah upload foto profile di halaman **Profile** dan tampilkan avatar di header/sidebar.
 - Tambah kompresi foto di browser (resize + JPEG) sebelum upload agar ukuran hemat untuk website.
+- Tambah import data Partners dari XLSX dan auto-link ke **Partner Setup** / **Project Setup**.
+- Tambah filter status Partners: **Active | Freeze | Inactive | All Status** (default: Active).
 - Tambah index full-text (GIN) untuk mempercepat search di **Audit Logs** (PostgreSQL).
 - Tambah test coverage untuk akses halaman Tables (Admin) dan upload profile photo.
 
 ### Fixed
 - Fix 403 permission untuk role **Administrator** pada halaman Tables (Time Boxing/Setup, Project Setup, dll).
 - Fix 413 Request Entity Too Large saat upload photo dengan menyesuaikan limit Nginx.
+- Fix pencarian Partners lintas halaman: search header sekarang melakukan server search (reset pagination).
 - Fix parsing input tanggal `dd Mmm yy` pada perhitungan durasi di halaman Projects.
 - Fix kompatibilitas migration saat test (SQLite) untuk operasi khusus PostgreSQL (sequence).
 
@@ -18,6 +21,8 @@
 - Standarisasi input tanggal diselesaikan agar seluruh halaman Tables memakai komponen global `DatePickerInput` (format `dd Mmm yy`).
 - Time Boxing: filter Info Date tidak lagi bergantung pada datepicker jQuery; memakai komponen global.
 - Akses Tables: pola middleware diperkuat sehingga Administrator tetap bisa akses meski permission belum tersinkron.
+- Branding title distandarkan menjadi **Power Project Management** (tanpa `Dashboard` / `Laravel`).
+- Partners: hapus Search (server) dan tombol Apply/Reset (search header sudah cukup).
 
 ---
 

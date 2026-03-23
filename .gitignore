@@ -25,3 +25,6 @@ storage_data.tar.gz
 
 # local build markers
 laravel-app/BUILD_MARKER.txt
+
+# local import files
+Partners.xlsx

@@ -138,6 +138,8 @@ export default function AuthenticatedLayout({ header, children }) {
                     items: [
                         'Tambahkan upload foto profile di halaman `Profile` dan tampilkan avatar di header/sidebar.',
                         'Tambahkan kompresi foto di browser (resize + JPEG) sebelum upload agar ukuran hemat.',
+                        'Tambahkan import data Partners dari XLSX dan auto-link ke `Tables > Partner Setup` / `Project Setup`.',
+                        'Tambahkan segmented filter status Partners: `Active | Freeze | Inactive | All Status` (default: Active).',
                         'Tambahkan index full-text (GIN) untuk mempercepat search di Audit Logs (PostgreSQL).',
                         'Tambahkan coverage test untuk akses halaman Tables (Admin) dan upload profile photo.',
                     ],
@@ -145,6 +147,8 @@ export default function AuthenticatedLayout({ header, children }) {
                         'Profile UI: `resources/js/Pages/Profile/Partials/UpdateProfileInformationForm.jsx`',
                         'Layout avatar: `resources/js/Layouts/AuthenticatedLayout.jsx`',
                         'Profile endpoints: `app/Http/Controllers/ProfileController.php`, `routes/web.php`',
+                        'Partners import: `routes/console.php`, `app/Services/PartnersXlsxImportService.php`, `app/Support/XlsxReader.php`',
+                        'Partners status filter: `app/Http/Controllers/Tables/PartnersController.php`, `resources/js/Pages/Tables/Partners/Index.jsx`',
                         'Audit index: `database/migrations/2026_03_23_000001_add_audit_logs_full_text_index.php`',
                         'Tests: `tests/Feature/TablesAdminAccessTest.php`, `tests/Feature/ProfilePhotoTest.php`',
                     ],
@@ -154,6 +158,7 @@ export default function AuthenticatedLayout({ header, children }) {
                     items: [
                         'Fix 403 permission untuk role Administrator di halaman Tables (Time Boxing/Setup, Project Setup, dll).',
                         'Fix 413 Request Entity Too Large saat upload photo dengan menyesuaikan limit Nginx.',
+                        'Fix pencarian data Partners lintas halaman: Search di header sekarang melakukan server search (reset pagination otomatis).',
                         'Fix parsing tanggal `dd Mmm yy` pada perhitungan durasi di halaman Projects.',
                         'Fix kompatibilitas migration saat test (SQLite) untuk query PostgreSQL sequence.',
                     ],
@@ -161,6 +166,7 @@ export default function AuthenticatedLayout({ header, children }) {
                         'Routes middleware: `routes/web.php`',
                         'Permission seeding: `app/Http/Middleware/EnsureCorePermissions.php`, `app/Support/PermissionCatalog.php`',
                         'Nginx: `docker/nginx/default.conf`',
+                        'Partners search: `resources/js/Layouts/AuthenticatedLayout.jsx`, `resources/js/Pages/Tables/Partners/Index.jsx`, `app/Http/Controllers/Tables/PartnersController.php`',
                         'Projects UI: `resources/js/Pages/Tables/Projects/Index.jsx`',
                         'Migrations: `database/migrations/2026_03_20_000008_create_time_boxings_table.php`, `2026_03_20_000010_add_no_to_projects_table.php`',
                     ],
@@ -171,10 +177,14 @@ export default function AuthenticatedLayout({ header, children }) {
                         'Standarisasi input tanggal diselesaikan agar seluruh halaman Tables memakai komponen global `DatePickerInput` (format `dd Mmm yy`).',
                         'Filter Info Date di Time Boxing tidak lagi bergantung pada datepicker jQuery; memakai komponen global.',
                         'Pola middleware akses Tables diperkuat: Administrator dapat akses meski permission belum tersinkron.',
+                        'Branding title aplikasi distandarkan menjadi `Power Project Management` (tanpa suffix `Laravel`).',
+                        'Partners: hapus Search (server) + tombol Apply/Reset karena Search header sudah cukup.',
                     ],
                     references: [
                         'Date component: `resources/js/Components/DatePickerInput.jsx`',
                         'Tables pages: `resources/js/Pages/Tables/*/Index.jsx`',
+                        'App title: `resources/js/app.jsx`, `resources/views/app.blade.php`',
+                        'Partners UI: `resources/js/Pages/Tables/Partners/Index.jsx`',
                         'Routes: `routes/web.php`',
                     ],
                 },
@@ -432,7 +442,14 @@ export default function AuthenticatedLayout({ header, children }) {
     }, [header]);
 
     useEffect(() => {
-        setPageSearchQuery('');
+        if (typeof window === 'undefined') return;
+        try {
+            const u = new URL(url, window.location.origin);
+            const q = u.searchParams.get('q');
+            setPageSearchQuery(q ? String(q) : '');
+        } catch (e) {
+            setPageSearchQuery('');
+        }
     }, [url]);
 
     useEffect(() => {
