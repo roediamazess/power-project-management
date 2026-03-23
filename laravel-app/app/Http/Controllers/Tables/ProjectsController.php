@@ -12,6 +12,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -41,61 +42,36 @@ class ProjectsController extends Controller
         'status',
     ];
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $projects = Project::query()
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $q = trim((string) ($data['q'] ?? ''));
+        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        $query = Project::query()
             ->with(['picAssignments' => fn ($q) => $q->orderBy('start_date')->orderBy('id')])
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (Project $p) => [
-                'id' => $p->id,
-                'no' => $p->no,
-                'cnc_id' => $p->cnc_id,
-                'pic_user_id' => $p->pic_user_id,
-                'pic_name' => $p->pic_name,
-                'pic_email' => $p->pic_email,
-                'pic_assignments' => $p->picAssignments->map(fn ($a) => [
-                    'id' => $a->id,
-                    'pic_user_id' => $a->pic_user_id,
-                    'pic_name' => $a->pic_name,
-                    'pic_email' => $a->pic_email,
-                    'start_date' => $a->start_date?->toDateString(),
-                    'end_date' => $a->end_date?->toDateString(),
-                ])->values(),
-                'pic_summary' => $p->picAssignments->pluck('pic_name')->filter()->unique()->values()->implode(', '),
-                'partner_id' => $p->partner_id,
-                'partner_name' => $p->partner_name,
-                'project_name' => $p->project_name,
-                'assignment' => $p->assignment,
-                'project_information' => $p->project_information,
-                'pic_assignment' => $p->pic_assignment,
-                'type' => $p->type,
-                'start_date' => $p->start_date?->toDateString(),
-                'end_date' => $p->end_date?->toDateString(),
-                'total_days' => $p->total_days,
-                'status' => $p->status,
-                'handover_official_report' => $p->handover_official_report?->toDateString(),
-                'handover_days' => $p->handover_days,
-                'kpi2_pic' => $p->kpi2_pic,
-                'check_official_report' => $p->check_official_report?->toDateString(),
-                'check_days' => $p->check_days,
-                'kpi2_officer' => $p->kpi2_officer,
-                'point_ach' => $p->point_ach,
-                'point_req' => $p->point_req,
-                'percentage_of_point' => $p->percentage_of_point,
-                'validation_date' => $p->validation_date?->toDateString(),
-                'validation_days' => $p->validation_days,
-                'kpi2_okr' => $p->kpi2_okr,
-                'spreadsheet_id' => $p->spreadsheet_id,
-                'spreadsheet_url' => $p->spreadsheet_url,
-                'activity_sent' => $p->activity_sent?->toISOString(),
-                's1_estimation_date' => $p->s1_estimation_date?->toDateString(),
-                's1_over_days' => $p->s1_over_days,
-                's1_count_emails_sent' => $p->s1_count_emails_sent,
-                's2_email_sent' => $p->s2_email_sent,
-                's3_email_sent' => $p->s3_email_sent,
-            ])
-            ->values();
+            ->orderByDesc('created_at');
+
+        if ($q !== '') {
+            $like = '%' . str_replace('%', '\%', $q) . '%';
+            $query->where(function ($w) use ($op, $like) {
+                $w->where('no', $op, $like)
+                    ->orWhere('cnc_id', $op, $like)
+                    ->orWhere('project_name', $op, $like)
+                    ->orWhere('partner_name', $op, $like)
+                    ->orWhere('pic_name', $op, $like)
+                    ->orWhere('pic_email', $op, $like)
+                    ->orWhere('status', $op, $like)
+                    ->orWhere('type', $op, $like)
+                    ->orWhere('assignment', $op, $like);
+            });
+        }
+
+        $projects = $query->paginate(50)->withQueryString();
+        $projects = $this->mapPaginator($projects);
 
         $partners = Partner::query()
             ->orderBy('name')
@@ -132,6 +108,9 @@ class ProjectsController extends Controller
 
         return Inertia::render('Tables/Projects/Index', [
             'projects' => $projects,
+            'filters' => [
+                'q' => $q,
+            ],
             'partners' => $partners,
             'users' => $users,
             'setupOptions' => $setupOptions,
@@ -140,6 +119,62 @@ class ProjectsController extends Controller
             'picAssignmentOptions' => self::PIC_ASSIGNMENT_OPTIONS,
         ]);
     }
+
+    private function mapPaginator(LengthAwarePaginator $paginator): LengthAwarePaginator
+    {
+        $collection = $paginator->getCollection()->map(fn (Project $p) => [
+            'id' => $p->id,
+            'no' => $p->no,
+            'cnc_id' => $p->cnc_id,
+            'pic_user_id' => $p->pic_user_id,
+            'pic_name' => $p->pic_name,
+            'pic_email' => $p->pic_email,
+            'pic_assignments' => $p->picAssignments->map(fn ($a) => [
+                'id' => $a->id,
+                'pic_user_id' => $a->pic_user_id,
+                'pic_name' => $a->pic_name,
+                'pic_email' => $a->pic_email,
+                'start_date' => $a->start_date?->toDateString(),
+                'end_date' => $a->end_date?->toDateString(),
+            ])->values(),
+            'pic_summary' => $p->picAssignments->pluck('pic_name')->filter()->unique()->values()->implode(', '),
+            'partner_id' => $p->partner_id,
+            'partner_name' => $p->partner_name,
+            'project_name' => $p->project_name,
+            'assignment' => $p->assignment,
+            'project_information' => $p->project_information,
+            'pic_assignment' => $p->pic_assignment,
+            'type' => $p->type,
+            'start_date' => $p->start_date?->toDateString(),
+            'end_date' => $p->end_date?->toDateString(),
+            'total_days' => $p->total_days,
+            'status' => $p->status,
+            'handover_official_report' => $p->handover_official_report?->toDateString(),
+            'handover_days' => $p->handover_days,
+            'kpi2_pic' => $p->kpi2_pic,
+            'check_official_report' => $p->check_official_report?->toDateString(),
+            'check_days' => $p->check_days,
+            'kpi2_officer' => $p->kpi2_officer,
+            'point_ach' => $p->point_ach,
+            'point_req' => $p->point_req,
+            'percentage_of_point' => $p->percentage_of_point,
+            'validation_date' => $p->validation_date?->toDateString(),
+            'validation_days' => $p->validation_days,
+            'kpi2_okr' => $p->kpi2_okr,
+            'spreadsheet_id' => $p->spreadsheet_id,
+            'spreadsheet_url' => $p->spreadsheet_url,
+            'activity_sent' => $p->activity_sent?->toISOString(),
+            's1_estimation_date' => $p->s1_estimation_date?->toDateString(),
+            's1_over_days' => $p->s1_over_days,
+            's1_count_emails_sent' => $p->s1_count_emails_sent,
+            's2_email_sent' => $p->s2_email_sent,
+            's3_email_sent' => $p->s3_email_sent,
+        ]);
+
+        $paginator->setCollection($collection);
+        return $paginator;
+    }
+
 
     public function store(Request $request): RedirectResponse
     {

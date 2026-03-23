@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -66,23 +67,22 @@ class AuditLogsController extends Controller
         }
 
         if ($q !== '') {
-            $like = '%' . str_replace('%', '\\%', $q) . '%';
-            $query->where(function ($w) use ($like) {
-                $w->where('model_id', 'ilike', $like)
-                    ->orWhere('model_type', 'ilike', $like)
-                    ->orWhereRaw("meta->>'url' ILIKE ?", [$like])
-                    ->orWhereRaw("meta->>'setup_category' ILIKE ?", [$like])
-                    ->orWhereRaw('before::text ILIKE ?', [$like])
-                    ->orWhereRaw('after::text ILIKE ?', [$like]);
-            });
-        }
-
-        if ($dateFrom) {
-            $query->where('created_at', '>=', Carbon::parse($dateFrom)->startOfDay());
-        }
-
-        if ($dateTo) {
-            $query->where('created_at', '<=', Carbon::parse($dateTo)->endOfDay());
+            if (DB::getDriverName() === 'pgsql') {
+                $query->whereRaw(
+                    "to_tsvector('simple', coalesce(action,'') || ' ' || coalesce(model_type,'') || ' ' || coalesce(model_id,'') || ' ' || coalesce(meta::text,'') || ' ' || coalesce(before::text,'') || ' ' || coalesce(after::text,'')) @@ plainto_tsquery('simple', ?)",
+                    [$q]
+                );
+            } else {
+                $like = '%' . str_replace('%', '\%', $q) . '%';
+                $query->where(function ($w) use ($like) {
+                    $w->where('event_module', 'like', $like)
+                        ->orWhere('event_action', 'like', $like)
+                        ->orWhere('model_type', 'like', $like)
+                        ->orWhere('model_id', 'like', $like)
+                        ->orWhereRaw('before::text like ?', [$like])
+                        ->orWhereRaw('after::text like ?', [$like]);
+                });
+            }
         }
 
         $logs = $query->paginate(50)->withQueryString();

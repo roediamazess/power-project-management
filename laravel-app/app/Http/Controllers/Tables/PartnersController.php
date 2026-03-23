@@ -8,6 +8,7 @@ use App\Models\PartnerSetupOption;
 use App\Models\AuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -33,44 +34,38 @@ class PartnersController extends Controller
         'sub_area',
     ];
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $partners = Partner::query()
-            ->orderBy('id')
-            ->get()
-            ->map(fn (Partner $p) => [
-                'id' => $p->id,
-                'cnc_id' => $p->cnc_id,
-                'name' => $p->name,
-                'star' => $p->star,
-                'room' => $p->room,
-                'outlet' => $p->outlet,
-                'status' => $p->status,
-                'system_live' => $p->system_live?->toDateString(),
-                'implementation_type' => $p->implementation_type,
-                'system_version' => $p->system_version,
-                'type' => $p->type,
-                'group' => $p->group,
-                'address' => $p->address,
-                'area' => $p->area,
-                'sub_area' => $p->sub_area,
-                'gm_email' => $p->gm_email,
-                'fc_email' => $p->fc_email,
-                'ca_email' => $p->ca_email,
-                'cc_email' => $p->cc_email,
-                'ia_email' => $p->ia_email,
-                'it_email' => $p->it_email,
-                'hrd_email' => $p->hrd_email,
-                'fom_email' => $p->fom_email,
-                'dos_email' => $p->dos_email,
-                'ehk_email' => $p->ehk_email,
-                'fbm_email' => $p->fbm_email,
-                'last_visit' => $p->last_visit?->toDateString(),
-                'last_visit_type' => $p->last_visit_type,
-                'last_project' => $p->last_project,
-                'last_project_type' => $p->last_project_type,
-            ])
-            ->values();
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $q = trim((string) ($data['q'] ?? ''));
+
+        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        $query = Partner::query()->orderBy('id');
+
+        if ($q !== '') {
+            $like = '%' . str_replace('%', '\%', $q) . '%';
+            $query->where(function ($w) use ($op, $like) {
+                $w->where('cnc_id', $op, $like)
+                    ->orWhere('name', $op, $like)
+                    ->orWhere('status', $op, $like)
+                    ->orWhere('room', $op, $like)
+                    ->orWhere('outlet', $op, $like)
+                    ->orWhere('system_version', $op, $like)
+                    ->orWhere('type', $op, $like)
+                    ->orWhere('group', $op, $like)
+                    ->orWhere('area', $op, $like)
+                    ->orWhere('sub_area', $op, $like)
+                    ->orWhere('gm_email', $op, $like)
+                    ->orWhere('it_email', $op, $like);
+            });
+        }
+
+        $partners = $query->paginate(50)->withQueryString();
+        $partners = $this->mapPaginator($partners);
 
         $setupOptions = PartnerSetupOption::query()
             ->whereIn('category', self::SETUP_CATEGORIES)
@@ -83,11 +78,54 @@ class PartnersController extends Controller
 
         return Inertia::render('Tables/Partners/Index', [
             'partners' => $partners,
+            'filters' => [
+                'q' => $q,
+            ],
             'starOptions' => self::STAR_OPTIONS,
             'statusOptions' => self::STATUS_OPTIONS,
             'setupOptions' => $setupOptions,
         ]);
     }
+
+    private function mapPaginator(LengthAwarePaginator $paginator): LengthAwarePaginator
+    {
+        $collection = $paginator->getCollection()->map(fn (Partner $p) => [
+            'id' => $p->id,
+            'cnc_id' => $p->cnc_id,
+            'name' => $p->name,
+            'star' => $p->star,
+            'room' => $p->room,
+            'outlet' => $p->outlet,
+            'status' => $p->status,
+            'system_live' => $p->system_live?->toDateString(),
+            'implementation_type' => $p->implementation_type,
+            'system_version' => $p->system_version,
+            'type' => $p->type,
+            'group' => $p->group,
+            'address' => $p->address,
+            'area' => $p->area,
+            'sub_area' => $p->sub_area,
+            'gm_email' => $p->gm_email,
+            'fc_email' => $p->fc_email,
+            'ca_email' => $p->ca_email,
+            'cc_email' => $p->cc_email,
+            'ia_email' => $p->ia_email,
+            'it_email' => $p->it_email,
+            'hrd_email' => $p->hrd_email,
+            'fom_email' => $p->fom_email,
+            'dos_email' => $p->dos_email,
+            'ehk_email' => $p->ehk_email,
+            'fbm_email' => $p->fbm_email,
+            'last_visit' => $p->last_visit?->toDateString(),
+            'last_visit_type' => $p->last_visit_type,
+            'last_project' => $p->last_project,
+            'last_project_type' => $p->last_project_type,
+        ]);
+
+        $paginator->setCollection($collection);
+        return $paginator;
+    }
+
 
     public function store(Request $request): RedirectResponse
     {

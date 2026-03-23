@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import axios from 'axios';
 import { useMemo, useState } from 'react';
 import { parseDateDdMmmYyToIso } from '@/utils/date';
+import DatePickerInput from '@/Components/DatePickerInput';
 
 const actionBadgeClass = {
     create: 'bg-success',
@@ -157,24 +158,12 @@ export default function AuditLogsIndex({ logs, filters, modules, actions, pageSe
 
                                 <div className="col-lg-3 mb-2">
                                     <label className="text-black font-w600 form-label">Date From</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="dd Mmm yy"
-                                        value={dateFrom}
-                                        onChange={(e) => setDateFrom(e.target.value)}
-                                    />
+                                    <DatePickerInput value={dateFrom} onChange={setDateFrom} className="form-control" />
                                 </div>
 
                                 <div className="col-lg-3 mb-2">
                                     <label className="text-black font-w600 form-label">Date To</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="dd Mmm yy"
-                                        value={dateTo}
-                                        onChange={(e) => setDateTo(e.target.value)}
-                                    />
+                                    <DatePickerInput value={dateTo} onChange={setDateTo} className="form-control" />
                                 </div>
 
                                 <div className="col-12 mt-2">

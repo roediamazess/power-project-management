@@ -37,6 +37,17 @@ final class PermissionCatalog
                     ['key' => 'projects.update', 'label' => 'Update'],
                     ['key' => 'projects.delete', 'label' => 'Delete'],
                 ],
+            ],
+            [
+                'key' => 'project_setup',
+                'label' => 'Project Setup',
+                'items' => [
+                    ['key' => 'project_setup.view', 'label' => 'View'],
+                    ['key' => 'project_setup.create', 'label' => 'Create'],
+                    ['key' => 'project_setup.update', 'label' => 'Update'],
+                    ['key' => 'project_setup.delete', 'label' => 'Delete'],
+                ],
+            ],
             [
                 'key' => 'time_boxing',
                 'label' => 'Time Boxing',
@@ -55,18 +66,6 @@ final class PermissionCatalog
                     ['key' => 'time_boxing_setup.create', 'label' => 'Create'],
                     ['key' => 'time_boxing_setup.update', 'label' => 'Update'],
                     ['key' => 'time_boxing_setup.delete', 'label' => 'Delete'],
-                ],
-            ],
-
-            ],
-            [
-                'key' => 'project_setup',
-                'label' => 'Project Setup',
-                'items' => [
-                    ['key' => 'project_setup.view', 'label' => 'View'],
-                    ['key' => 'project_setup.create', 'label' => 'Create'],
-                    ['key' => 'project_setup.update', 'label' => 'Update'],
-                    ['key' => 'project_setup.delete', 'label' => 'Delete'],
                 ],
             ],
             [

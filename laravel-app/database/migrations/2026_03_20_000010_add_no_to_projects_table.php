@@ -19,15 +19,22 @@ return new class extends Migration
             }
         });
 
-        DB::statement("CREATE SEQUENCE IF NOT EXISTS projects_no_seq START 1 INCREMENT 1");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("CREATE SEQUENCE IF NOT EXISTS projects_no_seq START 1 INCREMENT 1");
+            DB::statement("UPDATE projects p SET no = s.rn FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) rn FROM projects) s WHERE p.id = s.id AND p.no IS NULL");
+            Schema::table('projects', function (Blueprint $table) {
+                $table->unsignedBigInteger('no')->nullable(false)->change();
+            });
+            DB::statement("ALTER TABLE projects ALTER COLUMN no SET DEFAULT nextval('projects_no_seq')");
+            return;
+        }
 
-        DB::statement("UPDATE projects p SET no = s.rn FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) rn FROM projects) s WHERE p.id = s.id AND p.no IS NULL");
-
-        Schema::table('projects', function (Blueprint $table) {
-            $table->unsignedBigInteger('no')->nullable(false)->change();
-        });
-
-        DB::statement("ALTER TABLE projects ALTER COLUMN no SET DEFAULT nextval('projects_no_seq')");
+        $ids = DB::table('projects')->orderBy('created_at')->orderBy('id')->pluck('id')->all();
+        $counter = 1;
+        foreach ($ids as $id) {
+            DB::table('projects')->where('id', $id)->whereNull('no')->update(['no' => $counter]);
+            $counter++;
+        }
     }
 
     public function down(): void
@@ -43,6 +50,8 @@ return new class extends Migration
             }
         });
 
-        DB::statement('DROP SEQUENCE IF EXISTS projects_no_seq');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('DROP SEQUENCE IF EXISTS projects_no_seq');
+        }
     }
 };

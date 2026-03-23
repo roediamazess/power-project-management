@@ -35,13 +35,17 @@ return new class extends Migration
             $table->foreign('project_id')->references('id')->on('projects')->nullOnDelete();
         });
 
-        DB::statement("CREATE SEQUENCE IF NOT EXISTS time_boxings_no_seq START 1 INCREMENT 1");
-        DB::statement("ALTER TABLE time_boxings ALTER COLUMN no SET DEFAULT nextval('time_boxings_no_seq')");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("CREATE SEQUENCE IF NOT EXISTS time_boxings_no_seq START 1 INCREMENT 1");
+            DB::statement("ALTER TABLE time_boxings ALTER COLUMN no SET DEFAULT nextval('time_boxings_no_seq')");
+        }
     }
 
     public function down(): void
     {
         Schema::dropIfExists('time_boxings');
-        DB::statement('DROP SEQUENCE IF EXISTS time_boxings_no_seq');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('DROP SEQUENCE IF EXISTS time_boxings_no_seq');
+        }
     }
 };

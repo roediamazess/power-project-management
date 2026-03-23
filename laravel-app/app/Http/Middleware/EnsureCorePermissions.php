@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Database\Seeders\ReleaseNotesSeeder;
 
 class EnsureCorePermissions
@@ -16,7 +17,9 @@ class EnsureCorePermissions
     public function handle(Request $request, Closure $next)
     {
         try {
-            Cache::remember('core_permissions_seeded_v2', now()->addHours(6), function () {
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+            Cache::remember('core_permissions_seeded_v4', now()->addHours(6), function () {
                 if (! Schema::hasTable('permissions') || ! Schema::hasTable('roles')) {
                     return true;
                 }
@@ -27,6 +30,8 @@ class EnsureCorePermissions
 
                 $admin = Role::query()->firstOrCreate(['name' => 'Administrator', 'guard_name' => 'web']);
                 $admin->syncPermissions(PermissionCatalog::allPermissionKeys());
+
+                app(PermissionRegistrar::class)->forgetCachedPermissions();
 
                 return true;
             });

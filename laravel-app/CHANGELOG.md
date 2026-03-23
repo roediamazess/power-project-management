@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.2603.4 (2026-03-23)
+
+### Added
+- Tambah upload foto profile di halaman **Profile** dan tampilkan avatar di header/sidebar.
+- Tambah kompresi foto di browser (resize + JPEG) sebelum upload agar ukuran hemat untuk website.
+- Tambah index full-text (GIN) untuk mempercepat search di **Audit Logs** (PostgreSQL).
+- Tambah test coverage untuk akses halaman Tables (Admin) dan upload profile photo.
+
+### Fixed
+- Fix 403 permission untuk role **Administrator** pada halaman Tables (Time Boxing/Setup, Project Setup, dll).
+- Fix 413 Request Entity Too Large saat upload photo dengan menyesuaikan limit Nginx.
+- Fix parsing input tanggal `dd Mmm yy` pada perhitungan durasi di halaman Projects.
+- Fix kompatibilitas migration saat test (SQLite) untuk operasi khusus PostgreSQL (sequence).
+
+### Changed
+- Standarisasi input tanggal diselesaikan agar seluruh halaman Tables memakai komponen global `DatePickerInput` (format `dd Mmm yy`).
+- Time Boxing: filter Info Date tidak lagi bergantung pada datepicker jQuery; memakai komponen global.
+- Akses Tables: pola middleware diperkuat sehingga Administrator tetap bisa akses meski permission belum tersinkron.
+
+---
+
 ## v1.2603.3 (2026-03-20)
 
 ### Added
@@ -54,4 +75,4 @@
 
 ---
 
-Catatan: versi aplikasi sekarang **v1.2603.3**.
+Catatan: versi aplikasi sekarang **v1.2603.4**.

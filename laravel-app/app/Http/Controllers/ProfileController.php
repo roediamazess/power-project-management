@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,6 +39,58 @@ class ProfileController extends Controller
         $request->user()->save();
 
         return Redirect::route('profile.edit');
+    }
+
+    public function updatePhoto(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'photo' => ['required', 'file', 'image', 'max:4096'],
+        ]);
+
+        $user = $request->user();
+        $disk = Storage::disk('public');
+
+        if ($user->profile_photo_path && $disk->exists($user->profile_photo_path)) {
+            $disk->delete($user->profile_photo_path);
+        }
+
+        $path = $data['photo']->storePublicly('profile-photos', 'public');
+        $user->forceFill(['profile_photo_path' => $path])->save();
+
+        return Redirect::route('profile.edit');
+    }
+
+    public function destroyPhoto(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $disk = Storage::disk('public');
+
+        if ($user->profile_photo_path && $disk->exists($user->profile_photo_path)) {
+            $disk->delete($user->profile_photo_path);
+        }
+
+        $user->forceFill(['profile_photo_path' => null])->save();
+
+        return Redirect::route('profile.edit');
+    }
+
+    public function photo(Request $request, \App\Models\User $user)
+    {
+        if ((int) $request->user()?->id !== (int) $user->id) {
+            abort(403);
+        }
+
+        if (! $user->profile_photo_path) {
+            abort(404);
+        }
+
+        $disk = Storage::disk('public');
+        if (! $disk->exists($user->profile_photo_path)) {
+            abort(404);
+        }
+
+        $path = $disk->path($user->profile_photo_path);
+        return response()->file($path);
     }
 
     /**

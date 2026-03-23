@@ -1,8 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
 import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
+import DatePickerInput from '@/Components/DatePickerInput';
 
 const STATUS_BADGE = {
     Active: 'bg-success',
@@ -10,17 +11,21 @@ const STATUS_BADGE = {
     Freeze: 'bg-warning',
 };
 
-export default function PartnersIndex({ partners, starOptions, statusOptions, setupOptions, pageSearchQuery }) {
+export default function PartnersIndex({ partners, filters, starOptions, statusOptions, setupOptions, pageSearchQuery }) {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
+    const [q, setQ] = useState(filters?.q ?? '');
+
+    const rows = partners?.data ?? [];
+
     const editingPartner = useMemo(() => {
         if (!editingId) return null;
-        return (partners ?? []).find((p) => p.id === editingId) ?? null;
-    }, [editingId, partners]);
+        return (rows ?? []).find((p) => p.id === editingId) ?? null;
+    }, [editingId, rows]);
 
     const filteredPartners = useMemo(() => {
-        return filterByQuery(partners ?? [], pageSearchQuery, (p) => [
+        return filterByQuery(rows ?? [], pageSearchQuery, (p) => [
             p.id,
             p.cnc_id,
             p.name,
@@ -52,7 +57,16 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
             p.last_project,
             p.last_project_type,
         ]);
-    }, [partners, pageSearchQuery]);
+    }, [rows, pageSearchQuery]);
+
+    const applyHref = useMemo(() => {
+        const params = {};
+        if (q && q.trim()) params.q = q.trim();
+        return route('tables.partners.index', params);
+    }, [q]);
+
+    const resetHref = route('tables.partners.index');
+
 
     const {
         data,
@@ -303,16 +317,45 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
                         <div className="card-header">
                             <div>
                                 <h4 className="card-title mb-0">Tables &gt; Partners</h4>
-                                <p className="mb-0 text-muted">Total partners: {filteredPartners.length}</p>
+                                <p className="mb-0 text-muted">Showing {partners?.from ?? 0}-{partners?.to ?? 0} of {partners?.total ?? 0} (On this page: {filteredPartners.length})</p>
                             </div>
-                            <div className="d-flex gap-2">
-                                <button type="button" className="btn btn-primary" onClick={openCreate}>
+                            <div className="d-flex flex-wrap gap-2">
+                                <Link href={applyHref} className="btn btn-primary">
+                                    Apply
+                                </Link>
+                                <Link href={resetHref} className="btn btn-outline-secondary">
+                                    Reset
+                                </Link>
+                                <button type="button" className="btn btn-success" onClick={openCreate}>
                                     New
                                 </button>
                             </div>
                         </div>
 
                         <div className="card-body">
+                            <div className="row mb-3">
+                                <div className="col-12">
+                                    <label className="text-black font-w600 form-label">Search (server)</label>
+                                    <input type="text" className="form-control" value={q} onChange={(e) => setQ(e.target.value)} placeholder="cnc id, name, email, area..." />
+                                    <small className="text-muted">Search ini memfilter via server saat klik Apply. Search di header sidebar tetap memfilter data yang sedang tampil.</small>
+                                </div>
+                            </div>
+
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <div className="text-muted">
+                                    Showing {partners?.from ?? 0}-{partners?.to ?? 0} of {partners?.total ?? 0}
+                                </div>
+                                <div className="d-flex gap-2">
+                                    <Link href={partners?.prev_page_url ?? '#'} className={`btn btn-sm btn-outline-secondary ${partners?.prev_page_url ? '' : 'disabled'}`}>
+                                        Prev
+                                    </Link>
+                                    <Link href={partners?.next_page_url ?? '#'} className={`btn btn-sm btn-outline-secondary ${partners?.next_page_url ? '' : 'disabled'}`}>
+                                        Next
+                                    </Link>
+                                </div>
+                            </div>
+
+
                             <div className="table-responsive">
                                 <table className="table table-striped table-responsive-md">
                                     <thead>
@@ -500,12 +543,7 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
                                             <div className="col-lg-3">
                                                 <div className="mb-3">
                                                     <label className="text-black font-w600 form-label">System Live</label>
-                                                    <input
-                                                        type="text" placeholder="dd Mmm yy"
-                                                        className={`form-control ${errors.system_live ? 'is-invalid' : ''}`}
-                                                        value={data.system_live}
-                                                        onChange={(e) => setData('system_live', e.target.value)}
-                                                    />
+                                                    <DatePickerInput value={data.system_live} onChange={(v) => setData('system_live', v)} className="form-control" invalid={Boolean(errors.system_live)} />
                                                     {errors.system_live ? <div className="invalid-feedback">{errors.system_live}</div> : null}
                                                 </div>
                                             </div>
@@ -641,7 +679,7 @@ export default function PartnersIndex({ partners, starOptions, statusOptions, se
                                             <div className="col-lg-3">
                                                 <div className="mb-3">
                                                     <label className="text-black font-w600 form-label">Last Visit</label>
-                                                    <input type="text" className={`form-control ${errors.last_visit ? 'is-invalid' : ''}`} placeholder="dd Mmm yy" value={data.last_visit} onChange={(e) => setData('last_visit', e.target.value)} />
+                                                    <DatePickerInput value={data.last_visit} onChange={(v) => setData('last_visit', v)} className="form-control" invalid={Boolean(errors.last_visit)} />
                                                 {errors.last_visit ? <div className="invalid-feedback">{errors.last_visit}</div> : null}</div>
                                             </div>
                                             <div className="col-lg-3">

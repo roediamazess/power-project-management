@@ -186,7 +186,7 @@ class UserManagementController extends Controller
         ]);
 
         $actor = $request->user();
-        if (! $actor || ! $actor->can('access_control.manage')) {
+        if (! $actor || (! $actor->hasRole('Administrator') && ! $actor->can('access_control.manage'))) {
             abort(403);
         }
 

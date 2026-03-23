@@ -15,6 +15,10 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles;
 
+    protected $appends = [
+        'profile_photo_url',
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -31,6 +35,7 @@ class User extends Authenticatable
         'birthday',
         'tier',
         'status',
+        'profile_photo_path',
     ];
 
     /**
@@ -41,6 +46,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'profile_photo_path',
     ];
 
     /**
@@ -62,5 +68,14 @@ class User extends Authenticatable
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        if (! $this->profile_photo_path) {
+            return null;
+        }
+
+        return route('profile.photo', ['user' => $this->id, 'v' => $this->updated_at?->getTimestamp()]);
     }
 }

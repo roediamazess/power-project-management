@@ -1,8 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
 import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
+import DatePickerInput from '@/Components/DatePickerInput';
 
 const displayDateValue = (v) => {
     if (!v) return '';
@@ -12,17 +13,21 @@ const displayDateValue = (v) => {
     return out === '-' ? '' : out;
 };
 
-export default function ProjectsIndex({ projects, partners, users, setupOptions, assignmentOptions, projectInformationOptions, picAssignmentOptions, pageSearchQuery }) {
+export default function ProjectsIndex({ projects, filters, partners, users, setupOptions, assignmentOptions, projectInformationOptions, picAssignmentOptions, pageSearchQuery }) {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
+    const [q, setQ] = useState(filters?.q ?? '');
+
+    const rows = projects?.data ?? [];
+
     const editingProject = useMemo(() => {
         if (!editingId) return null;
-        return (projects ?? []).find((p) => p.id === editingId) ?? null;
-    }, [editingId, projects]);
+        return (rows ?? []).find((p) => p.id === editingId) ?? null;
+    }, [editingId, rows]);
 
     const filteredProjects = useMemo(() => {
-        return filterByQuery(projects ?? [], pageSearchQuery, (p) => [
+        return filterByQuery(rows ?? [], pageSearchQuery, (p) => [
             p.id,
             p.cnc_id,
             p.pic_name,
@@ -58,7 +63,16 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
             p.s2_email_sent,
             p.s3_email_sent,
         ]);
-    }, [projects, pageSearchQuery]);
+    }, [rows, pageSearchQuery]);
+
+    const applyHref = useMemo(() => {
+        const params = {};
+        if (q && q.trim()) params.q = q.trim();
+        return route('tables.projects.index', params);
+    }, [q]);
+
+    const resetHref = route('tables.projects.index');
+
 
     const { data, setData, post, put, delete: destroy, processing, errors, reset, clearErrors } = useForm({
         cnc_id: '',
@@ -151,10 +165,15 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
     }, [data.partner_id, partners]);
 
     const computed = useMemo(() => {
-        const start = data.start_date ? new Date(data.start_date + 'T00:00:00') : null;
-        const end = data.end_date ? new Date(data.end_date + 'T00:00:00') : null;
-        const handover = data.handover_official_report ? new Date(data.handover_official_report + 'T00:00:00') : null;
-        const validation = data.validation_date ? new Date(data.validation_date + 'T00:00:00') : null;
+        const startIso = parseDateDdMmmYyToIso(data.start_date);
+        const endIso = parseDateDdMmmYyToIso(data.end_date);
+        const handoverIso = parseDateDdMmmYyToIso(data.handover_official_report);
+        const validationIso = parseDateDdMmmYyToIso(data.validation_date);
+
+        const start = startIso ? new Date(startIso + 'T00:00:00') : null;
+        const end = endIso ? new Date(endIso + 'T00:00:00') : null;
+        const handover = handoverIso ? new Date(handoverIso + 'T00:00:00') : null;
+        const validation = validationIso ? new Date(validationIso + 'T00:00:00') : null;
 
         const totalDays = start && end ? Math.floor((end - start) / (24 * 3600 * 1000)) + 1 : null;
         const handoverDays = end && handover ? Math.floor((handover - end) / (24 * 3600 * 1000)) : null;
@@ -305,16 +324,45 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
                         <div className="card-header">
                             <div>
                                 <h4 className="card-title mb-0">Tables &gt; Projects</h4>
-                                <p className="mb-0 text-muted">Total projects: {filteredProjects.length}</p>
+                                <p className="mb-0 text-muted">Showing {projects?.from ?? 0}-{projects?.to ?? 0} of {projects?.total ?? 0} (On this page: {filteredProjects.length})</p>
                             </div>
-                            <div className="d-flex gap-2">
-                                <button type="button" className="btn btn-primary" onClick={openCreate}>
+                            <div className="d-flex flex-wrap gap-2">
+                                <Link href={applyHref} className="btn btn-primary">
+                                    Apply
+                                </Link>
+                                <Link href={resetHref} className="btn btn-outline-secondary">
+                                    Reset
+                                </Link>
+                                <button type="button" className="btn btn-success" onClick={openCreate}>
                                     New
                                 </button>
                             </div>
                         </div>
 
                         <div className="card-body">
+                            <div className="row mb-3">
+                                <div className="col-12">
+                                    <label className="text-black font-w600 form-label">Search (server)</label>
+                                    <input type="text" className="form-control" value={q} onChange={(e) => setQ(e.target.value)} placeholder="cnc id, project name, partner, PIC, status..." />
+                                    <small className="text-muted">Search ini memfilter via server saat klik Apply. Search di header sidebar tetap memfilter data yang sedang tampil.</small>
+                                </div>
+                            </div>
+
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <div className="text-muted">
+                                    Showing {projects?.from ?? 0}-{projects?.to ?? 0} of {projects?.total ?? 0}
+                                </div>
+                                <div className="d-flex gap-2">
+                                    <Link href={projects?.prev_page_url ?? '#'} className={`btn btn-sm btn-outline-secondary ${projects?.prev_page_url ? '' : 'disabled'}`}>
+                                        Prev
+                                    </Link>
+                                    <Link href={projects?.next_page_url ?? '#'} className={`btn btn-sm btn-outline-secondary ${projects?.next_page_url ? '' : 'disabled'}`}>
+                                        Next
+                                    </Link>
+                                </div>
+                            </div>
+
+
                             <div className="table-responsive">
                                 <table className="table table-striped table-responsive-md">
                                     <thead>
@@ -450,20 +498,20 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
                                                                             {errUser ? <div className="invalid-feedback">{errUser}</div> : null}
                                                                         </td>
                                                                         <td>
-                                                                            <input
-                                                                                type="text" placeholder="dd Mmm yy"
-                                                                                className={`form-control form-control-sm ${errStart ? 'is-invalid' : ''}`}
+                                                                            <DatePickerInput
                                                                                 value={row.start_date ?? ''}
-                                                                                onChange={(e) => updatePicRow(index, 'start_date', e.target.value)}
+                                                                                onChange={(v) => updatePicRow(index, 'start_date', v)}
+                                                                                className="form-control form-control-sm"
+                                                                                invalid={Boolean(errStart)}
                                                                             />
                                                                             {errStart ? <div className="invalid-feedback">{errStart}</div> : null}
                                                                         </td>
                                                                         <td>
-                                                                            <input
-                                                                                type="text" placeholder="dd Mmm yy"
-                                                                                className={`form-control form-control-sm ${errEnd ? 'is-invalid' : ''}`}
+                                                                            <DatePickerInput
                                                                                 value={row.end_date ?? ''}
-                                                                                onChange={(e) => updatePicRow(index, 'end_date', e.target.value)}
+                                                                                onChange={(v) => updatePicRow(index, 'end_date', v)}
+                                                                                className="form-control form-control-sm"
+                                                                                invalid={Boolean(errEnd)}
                                                                             />
                                                                             {errEnd ? <div className="invalid-feedback">{errEnd}</div> : null}
                                                                         </td>
@@ -532,13 +580,13 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Start Date</label>
-                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.start_date ? 'is-invalid' : ''}`} value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                                                <DatePickerInput value={data.start_date} onChange={(v) => setData('start_date', v)} className="form-control" invalid={Boolean(errors.start_date)} />
                                                 {errors.start_date ? <div className="invalid-feedback">{errors.start_date}</div> : null}
                                             </div>
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">End Date</label>
-                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.end_date ? 'is-invalid' : ''}`} value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                                                <DatePickerInput value={data.end_date} onChange={(v) => setData('end_date', v)} className="form-control" invalid={Boolean(errors.end_date)} />
                                                 {errors.end_date ? <div className="invalid-feedback">{errors.end_date}</div> : null}
                                             </div>
 
@@ -552,7 +600,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Handover Official Report</label>
-                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.handover_official_report ? 'is-invalid' : ''}`} value={data.handover_official_report} onChange={(e) => setData('handover_official_report', e.target.value)} />
+                                                <DatePickerInput value={data.handover_official_report} onChange={(v) => setData('handover_official_report', v)} className="form-control" invalid={Boolean(errors.handover_official_report)} />
                                                 {errors.handover_official_report ? <div className="invalid-feedback">{errors.handover_official_report}</div> : null}
                                             </div>
 
@@ -564,7 +612,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Check Official Report</label>
-                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.check_official_report ? 'is-invalid' : ''}`} value={data.check_official_report} onChange={(e) => setData('check_official_report', e.target.value)} />
+                                                <DatePickerInput value={data.check_official_report} onChange={(v) => setData('check_official_report', v)} className="form-control" invalid={Boolean(errors.check_official_report)} />
                                                 {errors.check_official_report ? <div className="invalid-feedback">{errors.check_official_report}</div> : null}
                                             </div>
 
@@ -594,7 +642,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Validation Date</label>
-                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.validation_date ? 'is-invalid' : ''}`} value={data.validation_date} onChange={(e) => setData('validation_date', e.target.value)} />
+                                                <DatePickerInput value={data.validation_date} onChange={(v) => setData('validation_date', v)} className="form-control" invalid={Boolean(errors.validation_date)} />
                                                 {errors.validation_date ? <div className="invalid-feedback">{errors.validation_date}</div> : null}
                                             </div>
 
@@ -618,7 +666,7 @@ export default function ProjectsIndex({ projects, partners, users, setupOptions,
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">S1 Estimation Date</label>
-                                                <input type="text" placeholder="dd Mmm yy" className={`form-control ${errors.s1_estimation_date ? 'is-invalid' : ''}`} value={data.s1_estimation_date} onChange={(e) => setData('s1_estimation_date', e.target.value)} />
+                                                <DatePickerInput value={data.s1_estimation_date} onChange={(v) => setData('s1_estimation_date', v)} className="form-control" invalid={Boolean(errors.s1_estimation_date)} />
                                                 {errors.s1_estimation_date ? <div className="invalid-feedback">{errors.s1_estimation_date}</div> : null}
                                             </div>
 

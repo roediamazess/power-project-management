@@ -1,8 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
 import { formatDateDdMmmYy, formatDateTimeDdMmmYyDayHms, parseDateDdMmmYyToIso } from '@/utils/date';
+import DatePickerInput from '@/Components/DatePickerInput';
 
 const statusBadgeClass = {
     'Brain Dump': 'bg-secondary',
@@ -25,23 +26,6 @@ const dateInputValue = (iso) => {
     return v === '-' ? '' : v;
 };
 
-const isoToLocalDate = (iso) => {
-    if (!iso) return null;
-    const parts = String(iso).split('-').map((v) => Number(v));
-    if (parts.length !== 3) return null;
-    const [y, m, d] = parts;
-    if (!y || !m || !d) return null;
-    return new Date(y, m - 1, d);
-};
-
-const dateToIsoLocal = (date) => {
-    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-};
-
 export default function TimeBoxingIndex({ items, filters, typeOptions, priorityOptions, statusOptions, partners, projects, pageSearchQuery }) {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -54,10 +38,6 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
     const [filterDateFrom, setFilterDateFrom] = useState(dateInputValue(filters?.date_from));
     const [filterDateTo, setFilterDateTo] = useState(dateInputValue(filters?.date_to));
 
-    const dateFromRef = useRef(null);
-    const dateToRef = useRef(null);
-    const datepickerReadyRef = useRef(false);
-
     useEffect(() => {
         setFilterStatus(filters?.status ?? 'all');
         setFilterPriority(filters?.priority ?? 'all');
@@ -67,70 +47,6 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
         setFilterDateFrom(dateInputValue(filters?.date_from));
         setFilterDateTo(dateInputValue(filters?.date_to));
     }, [filters]);
-
-    useEffect(() => {
-        const $ = window?.jQuery;
-        if (!dateFromRef.current || !dateToRef.current || !$ || !$.fn?.datepicker) return;
-
-        const opts = {
-            autoclose: true,
-            todayHighlight: true,
-            format: 'dd M yyyy',
-        };
-
-        const $from = $(dateFromRef.current);
-        const $to = $(dateToRef.current);
-
-        $from.datepicker(opts).on('changeDate', (e) => {
-            const iso = dateToIsoLocal(e.date);
-            const formatted = iso ? formatDateDdMmmYy(iso) : '';
-            setFilterDateFrom(formatted);
-            setTimeout(() => {
-                if (dateFromRef.current) dateFromRef.current.value = formatted;
-            }, 0);
-        });
-        $to.datepicker(opts).on('changeDate', (e) => {
-            const iso = dateToIsoLocal(e.date);
-            const formatted = iso ? formatDateDdMmmYy(iso) : '';
-            setFilterDateTo(formatted);
-            setTimeout(() => {
-                if (dateToRef.current) dateToRef.current.value = formatted;
-            }, 0);
-        });
-
-        datepickerReadyRef.current = true;
-
-        return () => {
-            try {
-                $from.datepicker('destroy');
-            } catch (_e) {}
-            try {
-                $to.datepicker('destroy');
-            } catch (_e) {}
-        };
-    }, []);
-
-    useEffect(() => {
-        const $ = window?.jQuery;
-        if (!datepickerReadyRef.current || !$ || !$.fn?.datepicker) return;
-
-        const $from = $(dateFromRef.current);
-        const $to = $(dateToRef.current);
-
-        const fromIso = parseDateDdMmmYyToIso(filterDateFrom);
-        const toIso = parseDateDdMmmYyToIso(filterDateTo);
-
-        if (fromIso) $from.datepicker('update', isoToLocalDate(fromIso));
-        else $from.datepicker('clearDates');
-
-        if (toIso) $to.datepicker('update', isoToLocalDate(toIso));
-        else $to.datepicker('clearDates');
-
-        setTimeout(() => {
-            if (dateFromRef.current) dateFromRef.current.value = filterDateFrom || '';
-            if (dateToRef.current) dateToRef.current.value = filterDateTo || '';
-        }, 0);
-    }, [filterDateFrom, filterDateTo]);
 
     const rows = items?.data ?? [];
 
@@ -424,12 +340,12 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
 
                                 <div className="col-xl-2 col-lg-3 col-md-6 mb-2">
                                     <label className="text-black font-w600 form-label">Info Date From</label>
-                                    <input ref={dateFromRef} type="text" className="form-control tb-datepicker" placeholder="dd Mmm yy" value={filterDateFrom} readOnly />
+                                    <DatePickerInput value={filterDateFrom} onChange={setFilterDateFrom} className="form-control" />
                                 </div>
 
                                 <div className="col-xl-2 col-lg-3 col-md-6 mb-2">
                                     <label className="text-black font-w600 form-label">Info Date To</label>
-                                    <input ref={dateToRef} type="text" className="form-control tb-datepicker" placeholder="dd Mmm yy" value={filterDateTo} readOnly />
+                                    <DatePickerInput value={filterDateTo} onChange={setFilterDateTo} className="form-control" />
                                 </div>
 
                                 <div className="col-xl-2 col-lg-3 col-md-6 mb-2 d-flex align-items-end">
@@ -546,13 +462,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
                                         <div className="row">
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label required">Information Date</label>
-                                                <input
-                                                    type="text"
-                                                    className={`form-control ${errors.information_date ? 'is-invalid' : ''}`}
-                                                    placeholder="dd Mmm yy"
-                                                    value={data.information_date}
-                                                    onChange={(e) => setData('information_date', e.target.value)}
-                                                />
+                                                <DatePickerInput value={data.information_date} onChange={(v) => setData('information_date', v)} className="form-control" invalid={Boolean(errors.information_date)} />
                                                 {errors.information_date ? <div className="invalid-feedback">{errors.information_date}</div> : null}
                                             </div>
 
@@ -626,7 +536,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
 
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Due Date</label>
-                                                <input type="text" className={`form-control ${errors.due_date ? 'is-invalid' : ''}`} placeholder="dd Mmm yy" value={data.due_date} onChange={(e) => setData('due_date', e.target.value)} />
+                                                <DatePickerInput value={data.due_date} onChange={(v) => setData('due_date', v)} className="form-control" invalid={Boolean(errors.due_date)} />
                                                 {errors.due_date ? <div className="invalid-feedback">{errors.due_date}</div> : null}
                                             </div>
 

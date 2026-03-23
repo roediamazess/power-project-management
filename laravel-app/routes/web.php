@@ -27,39 +27,39 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/tables/user-management', [UserManagementController::class, 'index'])->middleware('permission:user_management.view')->name('tables.user-management.index');
-    Route::post('/tables/user-management', [UserManagementController::class, 'store'])->middleware('permission:user_management.create')->name('tables.user-management.store');
-    Route::put('/tables/user-management/{user}', [UserManagementController::class, 'update'])->middleware('permission:user_management.update')->name('tables.user-management.update');
-    Route::delete('/tables/user-management/{user}', [UserManagementController::class, 'destroy'])->middleware('permission:user_management.delete')->name('tables.user-management.destroy');
-    Route::post('/tables/user-management/permissions', [UserManagementController::class, 'updateRolePermissions'])->middleware('permission:access_control.manage')->name('tables.user-management.permissions');
-    Route::get('/tables/partners', [PartnersController::class, 'index'])->middleware('permission:partners.view')->name('tables.partners.index');
-    Route::post('/tables/partners', [PartnersController::class, 'store'])->middleware('permission:partners.create')->name('tables.partners.store');
-    Route::put('/tables/partners/{partner}', [PartnersController::class, 'update'])->middleware('permission:partners.update')->name('tables.partners.update');
-    Route::delete('/tables/partners/{partner}', [PartnersController::class, 'destroy'])->middleware('permission:partners.delete')->name('tables.partners.destroy');
-    Route::get('/tables/partner-setup', [PartnerSetupController::class, 'index'])->middleware('permission:partner_setup.view')->name('tables.partner-setup.index');
-    Route::post('/tables/partner-setup', [PartnerSetupController::class, 'store'])->middleware('permission:partner_setup.create')->name('tables.partner-setup.store');
-    Route::put('/tables/partner-setup/{option}', [PartnerSetupController::class, 'update'])->middleware('permission:partner_setup.update')->name('tables.partner-setup.update');
-    Route::delete('/tables/partner-setup/{option}', [PartnerSetupController::class, 'destroy'])->middleware('permission:partner_setup.delete')->name('tables.partner-setup.destroy');
-    Route::get('/tables/projects', [ProjectsController::class, 'index'])->middleware('permission:projects.view')->name('tables.projects.index');
-    Route::post('/tables/projects', [ProjectsController::class, 'store'])->middleware('permission:projects.create')->name('tables.projects.store');
-    Route::put('/tables/projects/{project}', [ProjectsController::class, 'update'])->middleware('permission:projects.update')->name('tables.projects.update');
-    Route::delete('/tables/projects/{project}', [ProjectsController::class, 'destroy'])->middleware('permission:projects.delete')->name('tables.projects.destroy');
-    Route::get('/tables/project-setup', [ProjectSetupController::class, 'index'])->middleware('permission:project_setup.view')->name('tables.project-setup.index');
-    Route::post('/tables/project-setup', [ProjectSetupController::class, 'store'])->middleware('permission:project_setup.create')->name('tables.project-setup.store');
-    Route::put('/tables/project-setup/{option}', [ProjectSetupController::class, 'update'])->middleware('permission:project_setup.update')->name('tables.project-setup.update');
-    Route::delete('/tables/project-setup/{option}', [ProjectSetupController::class, 'destroy'])->middleware('permission:project_setup.delete')->name('tables.project-setup.destroy');
-    Route::get('/tables/time-boxing', [TimeBoxingsController::class, 'index'])->middleware('permission:time_boxing.view')->name('tables.time-boxing.index');
-    Route::post('/tables/time-boxing', [TimeBoxingsController::class, 'store'])->middleware('permission:time_boxing.create')->name('tables.time-boxing.store');
-    Route::put('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'update'])->middleware('permission:time_boxing.update')->name('tables.time-boxing.update');
-    Route::delete('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'destroy'])->middleware('permission:time_boxing.delete')->name('tables.time-boxing.destroy');
+    Route::get('/tables/user-management', [UserManagementController::class, 'index'])->middleware('role_or_permission:Administrator|user_management.view')->name('tables.user-management.index');
+    Route::post('/tables/user-management', [UserManagementController::class, 'store'])->middleware('role_or_permission:Administrator|user_management.create')->name('tables.user-management.store');
+    Route::put('/tables/user-management/{user}', [UserManagementController::class, 'update'])->middleware('role_or_permission:Administrator|user_management.update')->name('tables.user-management.update');
+    Route::delete('/tables/user-management/{user}', [UserManagementController::class, 'destroy'])->middleware('role_or_permission:Administrator|user_management.delete')->name('tables.user-management.destroy');
+    Route::post('/tables/user-management/permissions', [UserManagementController::class, 'updateRolePermissions'])->middleware('role_or_permission:Administrator|access_control.manage')->name('tables.user-management.permissions');
+    Route::get('/tables/partners', [PartnersController::class, 'index'])->middleware('role_or_permission:Administrator|partners.view')->name('tables.partners.index');
+    Route::post('/tables/partners', [PartnersController::class, 'store'])->middleware('role_or_permission:Administrator|partners.create')->name('tables.partners.store');
+    Route::put('/tables/partners/{partner}', [PartnersController::class, 'update'])->middleware('role_or_permission:Administrator|partners.update')->name('tables.partners.update');
+    Route::delete('/tables/partners/{partner}', [PartnersController::class, 'destroy'])->middleware('role_or_permission:Administrator|partners.delete')->name('tables.partners.destroy');
+    Route::get('/tables/partner-setup', [PartnerSetupController::class, 'index'])->middleware('role_or_permission:Administrator|partner_setup.view')->name('tables.partner-setup.index');
+    Route::post('/tables/partner-setup', [PartnerSetupController::class, 'store'])->middleware('role_or_permission:Administrator|partner_setup.create')->name('tables.partner-setup.store');
+    Route::put('/tables/partner-setup/{option}', [PartnerSetupController::class, 'update'])->middleware('role_or_permission:Administrator|partner_setup.update')->name('tables.partner-setup.update');
+    Route::delete('/tables/partner-setup/{option}', [PartnerSetupController::class, 'destroy'])->middleware('role_or_permission:Administrator|partner_setup.delete')->name('tables.partner-setup.destroy');
+    Route::get('/tables/projects', [ProjectsController::class, 'index'])->middleware('role_or_permission:Administrator|projects.view')->name('tables.projects.index');
+    Route::post('/tables/projects', [ProjectsController::class, 'store'])->middleware('role_or_permission:Administrator|projects.create')->name('tables.projects.store');
+    Route::put('/tables/projects/{project}', [ProjectsController::class, 'update'])->middleware('role_or_permission:Administrator|projects.update')->name('tables.projects.update');
+    Route::delete('/tables/projects/{project}', [ProjectsController::class, 'destroy'])->middleware('role_or_permission:Administrator|projects.delete')->name('tables.projects.destroy');
+    Route::get('/tables/project-setup', [ProjectSetupController::class, 'index'])->middleware('role_or_permission:Administrator|project_setup.view')->name('tables.project-setup.index');
+    Route::post('/tables/project-setup', [ProjectSetupController::class, 'store'])->middleware('role_or_permission:Administrator|project_setup.create')->name('tables.project-setup.store');
+    Route::put('/tables/project-setup/{option}', [ProjectSetupController::class, 'update'])->middleware('role_or_permission:Administrator|project_setup.update')->name('tables.project-setup.update');
+    Route::delete('/tables/project-setup/{option}', [ProjectSetupController::class, 'destroy'])->middleware('role_or_permission:Administrator|project_setup.delete')->name('tables.project-setup.destroy');
+    Route::get('/tables/time-boxing', [TimeBoxingsController::class, 'index'])->middleware('role_or_permission:Administrator|time_boxing.view')->name('tables.time-boxing.index');
+    Route::post('/tables/time-boxing', [TimeBoxingsController::class, 'store'])->middleware('role_or_permission:Administrator|time_boxing.create')->name('tables.time-boxing.store');
+    Route::put('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'update'])->middleware('role_or_permission:Administrator|time_boxing.update')->name('tables.time-boxing.update');
+    Route::delete('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'destroy'])->middleware('role_or_permission:Administrator|time_boxing.delete')->name('tables.time-boxing.destroy');
 
-    Route::get('/tables/time-boxing-setup', [TimeBoxingSetupController::class, 'index'])->middleware('permission:time_boxing_setup.view')->name('tables.time-boxing-setup.index');
-    Route::post('/tables/time-boxing-setup', [TimeBoxingSetupController::class, 'store'])->middleware('permission:time_boxing_setup.create')->name('tables.time-boxing-setup.store');
-    Route::put('/tables/time-boxing-setup/{option}', [TimeBoxingSetupController::class, 'update'])->middleware('permission:time_boxing_setup.update')->name('tables.time-boxing-setup.update');
-    Route::delete('/tables/time-boxing-setup/{option}', [TimeBoxingSetupController::class, 'destroy'])->middleware('permission:time_boxing_setup.delete')->name('tables.time-boxing-setup.destroy');
+    Route::get('/tables/time-boxing-setup', [TimeBoxingSetupController::class, 'index'])->middleware('role_or_permission:Administrator|time_boxing_setup.view')->name('tables.time-boxing-setup.index');
+    Route::post('/tables/time-boxing-setup', [TimeBoxingSetupController::class, 'store'])->middleware('role_or_permission:Administrator|time_boxing_setup.create')->name('tables.time-boxing-setup.store');
+    Route::put('/tables/time-boxing-setup/{option}', [TimeBoxingSetupController::class, 'update'])->middleware('role_or_permission:Administrator|time_boxing_setup.update')->name('tables.time-boxing-setup.update');
+    Route::delete('/tables/time-boxing-setup/{option}', [TimeBoxingSetupController::class, 'destroy'])->middleware('role_or_permission:Administrator|time_boxing_setup.delete')->name('tables.time-boxing-setup.destroy');
 
-    Route::get('/tables/audit-logs', [AuditLogsController::class, 'index'])->middleware('permission:audit_logs.view')->name('tables.audit-logs.index');
-    Route::get('/tables/audit-logs/{auditLog}', [AuditLogsController::class, 'show'])->middleware('permission:audit_logs.view')->name('tables.audit-logs.show');
+    Route::get('/tables/audit-logs', [AuditLogsController::class, 'index'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('tables.audit-logs.index');
+    Route::get('/tables/audit-logs/{auditLog}', [AuditLogsController::class, 'show'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('tables.audit-logs.show');
 
 
     Route::get('/projects', function () {
@@ -113,6 +113,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
+    Route::delete('/profile/photo', [ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
+    Route::get('/profile/photo/{user}', [ProfileController::class, 'photo'])->name('profile.photo');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

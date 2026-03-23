@@ -7,6 +7,8 @@ export default function AuthenticatedLayout({ header, children }) {
     const user = page.props.auth.user;
     const url = page.url;
 
+    const avatarSrc = user?.profile_photo_url || '/images/user.jpg';
+
     const [showVersionHistory, setShowVersionHistory] = useState(false);
 
     const [showSidebarSettings, setShowSidebarSettings] = useState(false);
@@ -116,7 +118,7 @@ export default function AuthenticatedLayout({ header, children }) {
     };
 
 
-    const appVersion = 'v1.2603.3';
+    const appVersion = 'v1.2603.4';
     const releaseNotes = page.props.releaseNotes;
 
     const renderInlineCode = (value) => {
@@ -127,6 +129,57 @@ export default function AuthenticatedLayout({ header, children }) {
     };
 
     const staticVersionHistory = [
+        {
+            version: 'v1.2603.4',
+            date: '2026-03-23',
+            sections: [
+                {
+                    title: 'Added',
+                    items: [
+                        'Tambahkan upload foto profile di halaman `Profile` dan tampilkan avatar di header/sidebar.',
+                        'Tambahkan kompresi foto di browser (resize + JPEG) sebelum upload agar ukuran hemat.',
+                        'Tambahkan index full-text (GIN) untuk mempercepat search di Audit Logs (PostgreSQL).',
+                        'Tambahkan coverage test untuk akses halaman Tables (Admin) dan upload profile photo.',
+                    ],
+                    references: [
+                        'Profile UI: `resources/js/Pages/Profile/Partials/UpdateProfileInformationForm.jsx`',
+                        'Layout avatar: `resources/js/Layouts/AuthenticatedLayout.jsx`',
+                        'Profile endpoints: `app/Http/Controllers/ProfileController.php`, `routes/web.php`',
+                        'Audit index: `database/migrations/2026_03_23_000001_add_audit_logs_full_text_index.php`',
+                        'Tests: `tests/Feature/TablesAdminAccessTest.php`, `tests/Feature/ProfilePhotoTest.php`',
+                    ],
+                },
+                {
+                    title: 'Fixed',
+                    items: [
+                        'Fix 403 permission untuk role Administrator di halaman Tables (Time Boxing/Setup, Project Setup, dll).',
+                        'Fix 413 Request Entity Too Large saat upload photo dengan menyesuaikan limit Nginx.',
+                        'Fix parsing tanggal `dd Mmm yy` pada perhitungan durasi di halaman Projects.',
+                        'Fix kompatibilitas migration saat test (SQLite) untuk query PostgreSQL sequence.',
+                    ],
+                    references: [
+                        'Routes middleware: `routes/web.php`',
+                        'Permission seeding: `app/Http/Middleware/EnsureCorePermissions.php`, `app/Support/PermissionCatalog.php`',
+                        'Nginx: `docker/nginx/default.conf`',
+                        'Projects UI: `resources/js/Pages/Tables/Projects/Index.jsx`',
+                        'Migrations: `database/migrations/2026_03_20_000008_create_time_boxings_table.php`, `2026_03_20_000010_add_no_to_projects_table.php`',
+                    ],
+                },
+                {
+                    title: 'Changed',
+                    items: [
+                        'Standarisasi input tanggal diselesaikan agar seluruh halaman Tables memakai komponen global `DatePickerInput` (format `dd Mmm yy`).',
+                        'Filter Info Date di Time Boxing tidak lagi bergantung pada datepicker jQuery; memakai komponen global.',
+                        'Pola middleware akses Tables diperkuat: Administrator dapat akses meski permission belum tersinkron.',
+                    ],
+                    references: [
+                        'Date component: `resources/js/Components/DatePickerInput.jsx`',
+                        'Tables pages: `resources/js/Pages/Tables/*/Index.jsx`',
+                        'Routes: `routes/web.php`',
+                    ],
+                },
+            ],
+        },
         {
             version: 'v1.2603.3',
             date: '2026-03-20',
@@ -712,7 +765,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                             role="button"
                                             data-bs-toggle="dropdown"
                                         >
-                                            <img src="/images/user.jpg" width="56" alt="" />
+                                            <img src={avatarSrc} width="56" alt="" />
                                         </a>
                                         <div className="dropdown-menu dropdown-menu-end">
                                             <Link href={route('profile.edit')} className="dropdown-item ai-icon">
@@ -943,7 +996,7 @@ export default function AuthenticatedLayout({ header, children }) {
                         <div className="side-bar-profile">
                             <div className="d-flex align-items-center justify-content-between mb-3">
                                 <div className="side-bar-profile-img">
-                                    <img src="/images/user.jpg" alt="" />
+                                    <img src={avatarSrc} alt="" />
                                 </div>
                                 <div className="profile-info1">
                                     <h5>{user.name}</h5>

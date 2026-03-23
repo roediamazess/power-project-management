@@ -127,7 +127,7 @@ function Dashboard() {
 
     return (
         <>
-            <Head title="Dashboard" />
+            <Head title="Power Project Management" />
 
             <div className="row">
                 <div className="col-xl-12">
