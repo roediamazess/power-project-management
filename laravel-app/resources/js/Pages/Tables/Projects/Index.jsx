@@ -18,6 +18,8 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
     const [editingId, setEditingId] = useState(null);
 
     const [q, setQ] = useState(filters?.q ?? '');
+    const [partnerLookupQuery, setPartnerLookupQuery] = useState('');
+    const [showPartnerPicker, setShowPartnerPicker] = useState(false);
 
     const rows = projects?.data ?? [];
 
@@ -114,6 +116,15 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [showModal]);
 
+    useEffect(() => {
+        if (!showPartnerPicker) return;
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') setShowPartnerPicker(false);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [showPartnerPicker]);
+
     const optionList = (key) => (setupOptions?.[key] ?? []).map((o) => (typeof o === 'string' ? { name: o, status: 'Active' } : o));
 
     const renderSetupOptions = (key, selectedValue) => {
@@ -164,6 +175,57 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         return (partners ?? []).find((p) => p.id === pid) ?? null;
     }, [data.partner_id, partners]);
 
+    const partnerLookup = useMemo(() => {
+        const selectedId = data.partner_id === '' ? null : Number(data.partner_id);
+        const selected = selectedId ? (partners ?? []).find((p) => p.id === selectedId) ?? null : null;
+
+        const tokens = String(partnerLookupQuery ?? '')
+            .toLowerCase()
+            .trim()
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter(Boolean);
+
+        const activePartners = (partners ?? []).filter((p) => String(p?.status ?? 'Active') === 'Active');
+
+        const matches = (p) => {
+            if (tokens.length === 0) return true;
+            const hay = `${p?.cnc_id ?? ''} ${p?.name ?? ''}`.toLowerCase();
+            return tokens.every((t) => hay.includes(t));
+        };
+
+        const items = activePartners
+            .filter(matches)
+            .sort((a, b) => {
+                const ai = Number(a?.cnc_id);
+                const bi = Number(b?.cnc_id);
+                if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return ai - bi;
+                return String(a?.cnc_id ?? '').localeCompare(String(b?.cnc_id ?? '')) || String(a?.name ?? '').localeCompare(String(b?.name ?? ''));
+            });
+
+        const selectedIsActive = selected ? String(selected?.status ?? 'Active') === 'Active' : false;
+        return { selected, selectedIsActive, items };
+    }, [data.partner_id, partnerLookupQuery, partners]);
+
+    const openPartnerPicker = () => {
+        setPartnerLookupQuery('');
+        setShowPartnerPicker(true);
+    };
+
+    const selectPartnerId = (id) => {
+        setData('partner_id', id ? String(id) : '');
+        setShowPartnerPicker(false);
+        setPartnerLookupQuery('');
+    };
+
+    const partnerDisplayValue = useMemo(() => {
+        if (!selectedPartner) return '';
+        const cnc = selectedPartner?.cnc_id ?? '';
+        const name = selectedPartner?.name ?? '';
+        const status = selectedPartner?.status ?? 'Active';
+        return status === 'Active' ? `${cnc} - ${name}` : `${cnc} - ${name} (${status})`;
+    }, [selectedPartner]);
+
     const computed = useMemo(() => {
         const startIso = parseDateDdMmmYyToIso(data.start_date);
         const endIso = parseDateDdMmmYyToIso(data.end_date);
@@ -190,6 +252,8 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         setEditingId(null);
         clearErrors();
         reset();
+        setPartnerLookupQuery('');
+        setShowPartnerPicker(false);
         setData({
             cnc_id: '',
             pic_assignments: [{ pic_user_id: '', start_date: '', end_date: '' }],
@@ -226,6 +290,8 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
     const openEdit = (p) => {
         setEditingId(p.id);
         clearErrors();
+        setPartnerLookupQuery('');
+        setShowPartnerPicker(false);
         setData({
             cnc_id: p.cnc_id ?? '',
             pic_assignments: (p.pic_assignments && p.pic_assignments.length ? p.pic_assignments.map((r) => ({ pic_user_id: r.pic_user_id ?? '', start_date: r.start_date ? displayDateValue(r.start_date) : '', end_date: r.end_date ? displayDateValue(r.end_date) : '' })) : (p.pic_user_id ? [{ pic_user_id: p.pic_user_id, start_date: p.start_date ? displayDateValue(p.start_date) : '', end_date: p.end_date ? displayDateValue(p.end_date) : '' }] : [{ pic_user_id: '', start_date: '', end_date: '' }])),
@@ -262,6 +328,8 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
     const closeModal = () => {
         setShowModal(false);
         setEditingId(null);
+        setPartnerLookupQuery('');
+        setShowPartnerPicker(false);
         clearErrors();
     };
 
@@ -445,14 +513,18 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
 
                                             <div className="col-lg-4 mb-3">
                                                 <label className="text-black font-w600 form-label">Partner</label>
-                                                <select className={`form-select ${errors.partner_id ? 'is-invalid' : ''}`} value={data.partner_id} onChange={(e) => setData('partner_id', e.target.value)}>
-                                                    <option value="">-</option>
-                                                    {(partners ?? []).map((p) => (
-                                                        <option key={p.id} value={p.id}>
-                                                            {p.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                <div className="input-group">
+                                                    <input
+                                                        className={`form-control ${errors.partner_id ? 'is-invalid' : ''}`}
+                                                        placeholder="Search partner (Active only)..."
+                                                        value={partnerDisplayValue}
+                                                        readOnly
+                                                        onClick={openPartnerPicker}
+                                                    />
+                                                    <button type="button" className="btn btn-outline-secondary" onClick={() => selectPartnerId('')} disabled={!data.partner_id}>
+                                                        Clear
+                                                    </button>
+                                                </div>
                                                 {errors.partner_id ? <div className="invalid-feedback">{errors.partner_id}</div> : null}
                                                 {selectedPartner ? <div className="form-text">Partner Name: {selectedPartner.name}</div> : null}
                                             </div>
@@ -718,6 +790,61 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                         </div>
                     </div>
                     <div className="modal-backdrop fade show" onClick={closeModal} />
+                </>
+            ) : null}
+
+            {showModal && showPartnerPicker ? (
+                <>
+                    <div className="modal fade show" style={{ display: 'block' }} role="dialog" aria-modal="true">
+                        <div className="modal-dialog modal-dialog-centered modal-lg" role="document">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h5 className="modal-title">Select Partner (Active)</h5>
+                                    <button type="button" className="btn-close" onClick={() => setShowPartnerPicker(false)} />
+                                </div>
+                                <div className="modal-body">
+                                    <div className="mb-3">
+                                        <input
+                                            className="form-control"
+                                            placeholder="Search by CNC ID or Name..."
+                                            value={partnerLookupQuery}
+                                            onChange={(e) => setPartnerLookupQuery(e.target.value)}
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div className="list-group" style={{ maxHeight: 420, overflow: 'auto' }}>
+                                        <button type="button" className="list-group-item list-group-item-action" onClick={() => selectPartnerId('')}>
+                                            -
+                                        </button>
+
+                                        {partnerLookup.selected && !partnerLookup.selectedIsActive ? (
+                                            <div className="list-group-item text-muted">
+                                                Selected: {partnerLookup.selected.cnc_id} - {partnerLookup.selected.name} ({partnerLookup.selected.status ?? 'Inactive'})
+                                            </div>
+                                        ) : null}
+
+                                        {partnerLookup.items.map((p) => (
+                                            <button
+                                                key={p.id}
+                                                type="button"
+                                                className="list-group-item list-group-item-action"
+                                                onClick={() => selectPartnerId(p.id)}
+                                            >
+                                                {p.cnc_id} - {p.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-outline-secondary" onClick={() => setShowPartnerPicker(false)}>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-backdrop fade show" onClick={() => setShowPartnerPicker(false)} />
                 </>
             ) : null}
         </>

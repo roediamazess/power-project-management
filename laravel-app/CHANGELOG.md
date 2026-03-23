@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.2603.5 (2026-03-24)
+
+### Added
+- Time Boxing: header kolom bisa dibuka (popup) untuk Sort + Filter.
+- Time Boxing: filter multi-select untuk **Type**, **Priority**, **Partner**, dan **Status**.
+- Time Boxing: segmented status **All Status | Active Status | Completed** (default: Active Status).
+- Time Boxing: popup picker Partner (Active only) dan Project (bukan Done/Rejected).
+- Time Boxing: filter rentang **Due Date** + endpoint options untuk mengambil opsi filter sesuai tab.
+- Import Time Boxing dari XLSX via artisan command `time-boxing:import` (lookup Partner CNC + auto-create Type).
+- Version History: referensi perubahan diblur untuk selain **Administrator/Management**.
+
+### Fixed
+- Time Boxing: popup header tidak lagi tertutup saat memilih tanggal; Apply baru menutup popup.
+- Time Boxing: perbaiki posisi popup agar tidak terpotong di sisi kanan layar.
+- Import Time Boxing: parsing `Completed Date` lebih toleran pada format GMT.
+- Import Time Boxing: baris yang `Partner CNC`/`Type` kosong tidak lagi ter-skip (default: CNC 3, Type General).
+
+### Changed
+- Time Boxing: panel filter lama dihapus, diganti menu header per kolom.
+- Time Boxing: sorting berjalan server-side dan default urut berdasarkan ID (asc).
+- Inertia props: auth roles dibagikan ke frontend untuk kebutuhan gating UI.
+
+---
+
 ## v1.2603.4 (2026-03-23)
 
 ### Added

@@ -49,6 +49,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/tables/project-setup/{option}', [ProjectSetupController::class, 'update'])->middleware('role_or_permission:Administrator|project_setup.update')->name('tables.project-setup.update');
     Route::delete('/tables/project-setup/{option}', [ProjectSetupController::class, 'destroy'])->middleware('role_or_permission:Administrator|project_setup.delete')->name('tables.project-setup.destroy');
     Route::get('/tables/time-boxing', [TimeBoxingsController::class, 'index'])->middleware('role_or_permission:Administrator|time_boxing.view')->name('tables.time-boxing.index');
+    Route::get('/tables/time-boxing/options', [TimeBoxingsController::class, 'options'])->middleware('role_or_permission:Administrator|time_boxing.view')->name('tables.time-boxing.options');
     Route::post('/tables/time-boxing', [TimeBoxingsController::class, 'store'])->middleware('role_or_permission:Administrator|time_boxing.create')->name('tables.time-boxing.store');
     Route::put('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'update'])->middleware('role_or_permission:Administrator|time_boxing.update')->name('tables.time-boxing.update');
     Route::delete('/tables/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'destroy'])->middleware('role_or_permission:Administrator|time_boxing.delete')->name('tables.time-boxing.destroy');

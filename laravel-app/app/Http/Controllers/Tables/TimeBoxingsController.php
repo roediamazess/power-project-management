@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 class TimeBoxingsController extends Controller
 {
@@ -35,44 +36,66 @@ class TimeBoxingsController extends Controller
     public function index(Request $request): Response
     {
         $data = $request->validate([
-            'status' => ['nullable', 'string', Rule::in(array_merge(['all'], self::STATUSES))],
-            'priority' => ['nullable', 'string', Rule::in(array_merge(['all'], self::PRIORITIES))],
-            'type' => ['nullable', 'string', 'max:255'],
-            'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
+            'status' => ['nullable', 'string', Rule::in(array_merge(['all', 'active'], self::STATUSES))],
+            'statuses' => ['nullable', 'array'],
+            'statuses.*' => ['string', Rule::in(self::STATUSES)],
+            'priorities' => ['nullable', 'array'],
+            'priorities.*' => ['string', Rule::in(self::PRIORITIES)],
+            'types' => ['nullable', 'array'],
+            'types.*' => ['string', 'max:255', Rule::exists('time_boxing_setup_options', 'name')->where(fn ($q) => $q->where('category', 'type'))],
+            'partner_ids' => ['nullable', 'array'],
+            'partner_ids.*' => ['integer', 'exists:partners,id'],
             'project_id' => ['nullable', 'string', 'exists:projects,id'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'due_from' => ['nullable', 'date'],
+            'due_to' => ['nullable', 'date'],
+            'sort_by' => ['nullable', 'string', Rule::in(['no', 'information_date', 'type', 'priority', 'partner', 'status', 'due_date'])],
+            'sort_dir' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
         ]);
 
-        $status = $data['status'] ?? 'all';
-        $priority = $data['priority'] ?? 'all';
-        $type = trim((string) ($data['type'] ?? ''));
-        $partnerId = $data['partner_id'] ?? null;
+        $status = $data['status'] ?? 'active';
+        $statuses = $data['statuses'] ?? [];
+        $priorities = $data['priorities'] ?? [];
+        $types = $data['types'] ?? [];
+        $partnerIds = $data['partner_ids'] ?? [];
         $projectId = $data['project_id'] ?? null;
         $dateFrom = $data['date_from'] ?? null;
         $dateTo = $data['date_to'] ?? null;
+        $dueFrom = $data['due_from'] ?? null;
+        $dueTo = $data['due_to'] ?? null;
+        $sortBy = $data['sort_by'] ?? 'no';
+        $sortDir = $data['sort_dir'] ?? 'asc';
 
         $query = TimeBoxing::query()
             ->with([
                 'partner:id,cnc_id,name',
                 'project:id,cnc_id,project_name',
-            ])
-            ->orderByDesc('no');
+            ]);
 
         if ($status !== 'all') {
-            $query->where('status', $status);
+            if ($status === 'active') {
+                $activeStatuses = array_values(array_filter(self::STATUSES, fn ($s) => $s !== 'Completed'));
+                $query->whereIn('status', $activeStatuses);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
-        if ($priority !== 'all') {
-            $query->where('priority', $priority);
+        if (is_array($statuses) && count($statuses)) {
+            $query->whereIn('status', array_values($statuses));
         }
 
-        if ($type !== '') {
-            $query->where('type', $type);
+        if (is_array($priorities) && count($priorities)) {
+            $query->whereIn('priority', array_values($priorities));
         }
 
-        if ($partnerId) {
-            $query->where('partner_id', $partnerId);
+        if (is_array($types) && count($types)) {
+            $query->whereIn('type', array_values($types));
+        }
+
+        if (is_array($partnerIds) && count($partnerIds)) {
+            $query->whereIn('partner_id', array_values($partnerIds));
         }
 
         if ($projectId) {
@@ -85,6 +108,27 @@ class TimeBoxingsController extends Controller
 
         if ($dateTo) {
             $query->where('information_date', '<=', Carbon::parse($dateTo)->toDateString());
+        }
+
+        if ($dueFrom) {
+            $query->where('due_date', '>=', Carbon::parse($dueFrom)->toDateString());
+        }
+
+        if ($dueTo) {
+            $query->where('due_date', '<=', Carbon::parse($dueTo)->toDateString());
+        }
+
+        if ($sortBy === 'partner') {
+            $query->leftJoin('partners as p_sort', 'p_sort.id', '=', 'time_boxings.partner_id')
+                ->select('time_boxings.*')
+                ->orderBy('p_sort.cnc_id', $sortDir)
+                ->orderBy('p_sort.name', $sortDir)
+                ->orderBy('time_boxings.no', 'asc');
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+            if ($sortBy !== 'no') {
+                $query->orderBy('no', 'asc');
+            }
         }
 
         $items = $query->paginate(50)->withQueryString();
@@ -102,38 +146,130 @@ class TimeBoxingsController extends Controller
 
         $partners = Partner::query()
             ->orderBy('id')
-            ->get(['id', 'cnc_id', 'name'])
+            ->get(['id', 'cnc_id', 'name', 'status'])
             ->map(fn (Partner $p) => [
                 'id' => $p->id,
                 'cnc_id' => $p->cnc_id,
                 'name' => $p->name,
+                'status' => $p->status,
             ]);
 
         $projects = Project::query()
             ->orderBy('cnc_id')
-            ->get(['id', 'cnc_id', 'project_name'])
+            ->get(['id', 'cnc_id', 'project_name', 'status'])
             ->map(fn (Project $p) => [
                 'id' => $p->id,
                 'cnc_id' => $p->cnc_id,
                 'project_name' => $p->project_name,
+                'status' => $p->status,
             ]);
 
         return Inertia::render('Tables/TimeBoxing/Index', [
             'items' => $items,
             'filters' => [
                 'status' => $status,
-                'priority' => $priority,
-                'type' => $type,
-                'partner_id' => $partnerId,
+                'statuses' => $statuses,
+                'priorities' => $priorities,
+                'types' => $types,
+                'partner_ids' => $partnerIds,
                 'project_id' => $projectId,
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
+                'due_from' => $dueFrom,
+                'due_to' => $dueTo,
+                'sort_by' => $sortBy,
+                'sort_dir' => $sortDir,
             ],
             'typeOptions' => $typeOptions,
             'priorityOptions' => self::PRIORITIES,
             'statusOptions' => self::STATUSES,
             'partners' => $partners,
             'projects' => $projects,
+        ]);
+    }
+
+    public function options(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['nullable', 'string', Rule::in(array_merge(['all', 'active'], self::STATUSES))],
+        ]);
+
+        $status = $data['status'] ?? 'active';
+
+        $query = TimeBoxing::query();
+
+        if ($status !== 'all') {
+            if ($status === 'active') {
+                $activeStatuses = array_values(array_filter(self::STATUSES, fn ($s) => $s !== 'Completed'));
+                $query->whereIn('status', $activeStatuses);
+            } else {
+                $query->where('status', $status);
+            }
+        }
+
+        $informationDates = (clone $query)
+            ->whereNotNull('information_date')
+            ->select('information_date')
+            ->distinct()
+            ->orderBy('information_date', 'asc')
+            ->pluck('information_date')
+            ->map(fn ($d) => (string) $d)
+            ->values();
+
+        $dueDates = (clone $query)
+            ->whereNotNull('due_date')
+            ->select('due_date')
+            ->distinct()
+            ->orderBy('due_date', 'asc')
+            ->pluck('due_date')
+            ->map(fn ($d) => (string) $d)
+            ->values();
+
+        $types = (clone $query)
+            ->whereNotNull('type')
+            ->select('type')
+            ->distinct()
+            ->orderBy('type', 'asc')
+            ->pluck('type')
+            ->map(fn ($t) => (string) $t)
+            ->values();
+
+        $priorities = (clone $query)
+            ->whereNotNull('priority')
+            ->select('priority')
+            ->distinct()
+            ->orderBy('priority', 'asc')
+            ->pluck('priority')
+            ->map(fn ($p) => (string) $p)
+            ->values();
+
+        $partnerIds = (clone $query)
+            ->whereNotNull('partner_id')
+            ->select('partner_id')
+            ->distinct()
+            ->pluck('partner_id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        $partners = Partner::query()
+            ->whereIn('id', $partnerIds)
+            ->orderBy('cnc_id')
+            ->get(['id', 'cnc_id', 'name', 'status'])
+            ->map(fn (Partner $p) => [
+                'id' => $p->id,
+                'cnc_id' => $p->cnc_id,
+                'name' => $p->name,
+                'status' => $p->status,
+            ])
+            ->values();
+
+        return response()->json([
+            'status' => $status,
+            'information_dates' => $informationDates,
+            'due_dates' => $dueDates,
+            'types' => $types,
+            'priorities' => $priorities,
+            'partners' => $partners,
         ]);
     }
 

@@ -5,6 +5,7 @@ import { formatDateDdMmmYy } from '@/utils/date';
 export default function AuthenticatedLayout({ header, children }) {
     const page = usePage();
     const user = page.props.auth.user;
+    const roles = page.props.auth.roles || [];
     const url = page.url;
 
     const avatarSrc = user?.profile_photo_url || '/images/user.jpg';
@@ -118,14 +119,61 @@ export default function AuthenticatedLayout({ header, children }) {
     };
 
 
-    const appVersion = 'v1.2603.4';
+    const appVersion = 'v1.2603.5';
     const releaseNotes = page.props.releaseNotes;
 
-    const renderInlineCode = (value) => {
+    const canSeeReleaseReferences = useMemo(() => {
+        return roles.includes('Administrator') || roles.includes('Management');
+    }, [roles]);
+
+    const renderInlineCode = (value, options = {}) => {
         const text = String(value ?? '');
         const parts = text.split('`');
         if (parts.length === 1) return text;
-        return parts.map((part, idx) => (idx % 2 === 1 ? <code key={idx}>{part}</code> : <span key={idx}>{part}</span>));
+
+        const blurCode = Boolean(options.blurCode);
+        return parts.map((part, idx) =>
+            idx % 2 === 1 ? (
+                <code
+                    key={idx}
+                    style={
+                        blurCode
+                            ? { filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none' }
+                            : undefined
+                    }
+                >
+                    {part}
+                </code>
+            ) : (
+                <span key={idx}>{part}</span>
+            ),
+        );
+    };
+
+    const renderReference = (value) => {
+        const text = String(value ?? '');
+        if (canSeeReleaseReferences) return renderInlineCode(text);
+
+        const idx = text.indexOf(':');
+        if (idx === -1) {
+            return (
+                <span style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none' }}>
+                    {text}
+                </span>
+            );
+        }
+
+        const prefix = text.slice(0, idx + 1);
+        const suffix = text.slice(idx + 1);
+
+        return (
+            <>
+                <span>{prefix}</span>
+                <span style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none' }}>
+                    {suffix}
+                </span>
+            </>
+        );
     };
 
     const staticVersionHistory = [
@@ -1390,7 +1438,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                                                 <div className="text-muted mb-1">Referensi perubahan:</div>
                                                                 <ul className="mb-0">
                                                                     {(s.references ?? []).map((r) => (
-                                                                        <li key={`${v.version}-${s.title}-${r}`}>{renderInlineCode(r)}</li>
+                                                                        <li key={`${v.version}-${s.title}-${r}`}>{renderReference(r)}</li>
                                                                     ))}
                                                                 </ul>
                                                             </>

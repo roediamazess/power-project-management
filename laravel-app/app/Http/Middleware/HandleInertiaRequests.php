@@ -30,6 +30,9 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $roles = $user ? $user->roles()->pluck('name')->values()->all() : [];
+
         return [
             ...parent::share($request),
             'releaseNotes' => fn () => ReleaseNote::query()
@@ -43,7 +46,8 @@ class HandleInertiaRequests extends Middleware
                 ])
                 ->values(),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
+                'roles' => $roles,
             ],
         ];
     }
