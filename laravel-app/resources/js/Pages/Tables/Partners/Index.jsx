@@ -75,7 +75,7 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
             const params = {};
             if (q) params.q = q;
             if (nextStatus && nextStatus !== 'Active') params.status = nextStatus;
-            router.get(route('tables.partners.index', params), {}, { preserveScroll: true, preserveState: true, replace: true });
+            router.get(route('partners.index', params, false), {}, { preserveScroll: true, preserveState: true, replace: true });
         }, 350);
 
         return () => clearTimeout(t);
@@ -227,7 +227,7 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
         };
 
         if (editingId) {
-            put(route('tables.partners.update', { partner: editingId }), {
+            put(route('partners.update', { partner: editingId }, false), {
                 preserveScroll: true,
                 data: payload,
                 onSuccess: () => closeModal(),
@@ -235,7 +235,7 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
             return;
         }
 
-        post(route('tables.partners.store'), {
+        post(route('partners.store', {}, false), {
             preserveScroll: true,
             data: payload,
             onSuccess: () => closeModal(),
@@ -244,7 +244,7 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
 
     const doDelete = (p) => {
         if (!window.confirm(`Delete partner: ${p.name} (${p.cnc_id})?`)) return;
-        destroy(route('tables.partners.destroy', { partner: p.id }), {
+        destroy(route('partners.destroy', { partner: p.id }, false), {
             preserveScroll: true,
         });
     };
@@ -348,7 +348,7 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
                                             const params = {};
                                             if (pageSearchQuery && String(pageSearchQuery).trim()) params.q = String(pageSearchQuery).trim();
                                             if (s !== 'Active') params.status = s;
-                                            const href = route('tables.partners.index', params);
+                                            const href = route('partners.index', params, false);
                                             const active = statusFilter === s;
                                             return (
                                                 <Link

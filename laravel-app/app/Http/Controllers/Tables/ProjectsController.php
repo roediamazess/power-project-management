@@ -45,29 +45,81 @@ class ProjectsController extends Controller
     public function index(Request $request): Response
     {
         $data = $request->validate([
-            'q' => ['nullable', 'string', 'max:200'],
+            'status_tab' => ['nullable', 'string', Rule::in(['all', 'running', 'planning', 'document', 'document_check', 'done', 'rejected'])],
+            'partner_ids' => ['nullable', 'array'],
+            'partner_ids.*' => ['integer', 'exists:partners,id'],
+            'types' => ['nullable', 'array'],
+            'types.*' => ['string', 'max:255', Rule::exists('project_setup_options', 'name')->where(fn ($q) => $q->where('category', 'type'))],
+            'statuses' => ['nullable', 'array'],
+            'statuses.*' => ['string', 'max:255', Rule::exists('project_setup_options', 'name')->where(fn ($q) => $q->where('category', 'status'))],
+            'start_from' => ['nullable', 'date'],
+            'start_to' => ['nullable', 'date'],
+            'sort_by' => ['nullable', 'string', Rule::in(['no', 'partner', 'type', 'start_date', 'status'])],
+            'sort_dir' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
         ]);
 
-        $q = trim((string) ($data['q'] ?? ''));
-        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $statusTab = $data['status_tab'] ?? 'running';
+        $partnerIds = $data['partner_ids'] ?? [];
+        $types = $data['types'] ?? [];
+        $statuses = $data['statuses'] ?? [];
+        $startFrom = $data['start_from'] ?? null;
+        $startTo = $data['start_to'] ?? null;
+        $sortBy = $data['sort_by'] ?? null;
+        $sortDir = $data['sort_dir'] ?? 'asc';
 
         $query = Project::query()
-            ->with(['picAssignments' => fn ($q) => $q->orderBy('start_date')->orderBy('id')])
-            ->orderByDesc('created_at');
+            ->with(['picAssignments' => fn ($q) => $q->orderBy('start_date')->orderBy('id')]);
 
-        if ($q !== '') {
-            $like = '%' . str_replace('%', '\%', $q) . '%';
-            $query->where(function ($w) use ($op, $like) {
-                $w->where('no', $op, $like)
-                    ->orWhere('cnc_id', $op, $like)
-                    ->orWhere('project_name', $op, $like)
-                    ->orWhere('partner_name', $op, $like)
-                    ->orWhere('pic_name', $op, $like)
-                    ->orWhere('pic_email', $op, $like)
-                    ->orWhere('status', $op, $like)
-                    ->orWhere('type', $op, $like)
-                    ->orWhere('assignment', $op, $like);
-            });
+        if ($statusTab !== 'all') {
+            $groups = [
+                'running' => ['Running'],
+                'planning' => ['Tentative', 'Scheduled'],
+                'document' => ['Document'],
+                'document_check' => ['Document Check'],
+                'done' => ['Done'],
+                'rejected' => ['Rejected'],
+            ];
+            $groupStatuses = $groups[$statusTab] ?? null;
+            if ($groupStatuses) {
+                $query->whereIn('status', $groupStatuses);
+            }
+        }
+
+        if (is_array($partnerIds) && count($partnerIds)) {
+            $query->whereIn('partner_id', array_values($partnerIds));
+        }
+
+        if (is_array($types) && count($types)) {
+            $query->whereIn('type', array_values($types));
+        }
+
+        if (is_array($statuses) && count($statuses)) {
+            $query->whereIn('status', array_values($statuses));
+        }
+
+        if ($startFrom) {
+            $query->where('start_date', '>=', Carbon::parse($startFrom)->toDateString());
+        }
+
+        if ($startTo) {
+            $query->where('start_date', '<=', Carbon::parse($startTo)->toDateString());
+        }
+
+        if ($sortBy) {
+            if ($sortBy === 'partner') {
+                $query->leftJoin('partners as p_sort', 'p_sort.id', '=', 'projects.partner_id')
+                    ->select('projects.*')
+                    ->orderBy('p_sort.cnc_id', $sortDir)
+                    ->orderBy('p_sort.name', $sortDir)
+                    ->orderBy('projects.no', 'asc');
+            } else {
+                $query->orderBy($sortBy, $sortDir);
+                if ($sortBy !== 'no') {
+                    $query->orderBy('no', 'asc');
+                }
+            }
+        } else {
+            $query->orderByDesc('created_at');
         }
 
         $projects = $query->paginate(50)->withQueryString();
@@ -109,7 +161,14 @@ class ProjectsController extends Controller
         return Inertia::render('Tables/Projects/Index', [
             'projects' => $projects,
             'filters' => [
-                'q' => $q,
+                'status_tab' => $statusTab,
+                'partner_ids' => $partnerIds,
+                'types' => $types,
+                'statuses' => $statuses,
+                'start_from' => $startFrom,
+                'start_to' => $startTo,
+                'sort_by' => $sortBy,
+                'sort_dir' => $sortDir,
             ],
             'partners' => $partners,
             'users' => $users,
@@ -191,7 +250,7 @@ class ProjectsController extends Controller
             AuditLog::record($request, 'create', Project::class, (string) $project->id, null, $after);
         });
 
-        return redirect()->route('tables.projects.index');
+        return redirect()->route('projects.index');
     }
 
     public function update(Request $request, Project $project): RedirectResponse
@@ -211,7 +270,7 @@ class ProjectsController extends Controller
             AuditLog::record($request, 'update', Project::class, (string) $project->id, $before, $after);
         });
 
-        return redirect()->route('tables.projects.index');
+        return redirect()->route('projects.index');
     }
 
     public function destroy(Request $request, Project $project): RedirectResponse
@@ -231,7 +290,7 @@ class ProjectsController extends Controller
             AuditLog::record($request, 'delete', Project::class, $projectId, $before, null);
         });
 
-        return redirect()->route('tables.projects.index');
+        return redirect()->route('projects.index');
     }
 
     private function validateProject(Request $request): array
@@ -244,10 +303,10 @@ class ProjectsController extends Controller
             'assignment' => ['nullable', 'string', Rule::in(self::ASSIGNMENT_OPTIONS)],
             'project_information' => ['required', 'string', Rule::in(self::PROJECT_INFORMATION_OPTIONS)],
             'pic_assignment' => ['required', 'string', Rule::in(self::PIC_ASSIGNMENT_OPTIONS)],
-            'type' => ['nullable', 'string', 'max:255'],
+            'type' => ['required', 'string', 'max:255', Rule::exists('project_setup_options', 'name')->where(fn ($q) => $q->where('category', 'type'))],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'string', 'max:255'],
+            'status' => ['required', 'string', 'max:255', Rule::exists('project_setup_options', 'name')->where(fn ($q) => $q->where('category', 'status'))],
             'handover_official_report' => ['nullable', 'date'],
             'kpi2_pic' => ['nullable', 'string'],
             'check_official_report' => ['nullable', 'date'],

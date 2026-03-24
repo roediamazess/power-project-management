@@ -62,12 +62,30 @@ Route::middleware('auth')->group(function () {
     Route::get('/tables/audit-logs', [AuditLogsController::class, 'index'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('tables.audit-logs.index');
     Route::get('/tables/audit-logs/{auditLog}', [AuditLogsController::class, 'show'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('tables.audit-logs.show');
 
+    Route::get('/audit-logs', [AuditLogsController::class, 'index'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('audit-logs.index');
+    Route::get('/audit-logs/{auditLog}', [AuditLogsController::class, 'show'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('audit-logs.show');
 
-    Route::get('/projects', function () {
+    Route::get('/projects', [ProjectsController::class, 'index'])->middleware('role_or_permission:Administrator|projects.view')->name('projects.index');
+    Route::post('/projects', [ProjectsController::class, 'store'])->middleware('role_or_permission:Administrator|projects.create')->name('projects.store');
+    Route::put('/projects/{project}', [ProjectsController::class, 'update'])->middleware('role_or_permission:Administrator|projects.update')->name('projects.update');
+    Route::delete('/projects/{project}', [ProjectsController::class, 'destroy'])->middleware('role_or_permission:Administrator|projects.delete')->name('projects.destroy');
+
+    Route::get('/partners', [PartnersController::class, 'index'])->middleware('role_or_permission:Administrator|partners.view')->name('partners.index');
+    Route::post('/partners', [PartnersController::class, 'store'])->middleware('role_or_permission:Administrator|partners.create')->name('partners.store');
+    Route::put('/partners/{partner}', [PartnersController::class, 'update'])->middleware('role_or_permission:Administrator|partners.update')->name('partners.update');
+    Route::delete('/partners/{partner}', [PartnersController::class, 'destroy'])->middleware('role_or_permission:Administrator|partners.delete')->name('partners.destroy');
+
+    Route::get('/time-boxing', [TimeBoxingsController::class, 'index'])->middleware('role_or_permission:Administrator|time_boxing.view')->name('time-boxing.index');
+    Route::get('/time-boxing/options', [TimeBoxingsController::class, 'options'])->middleware('role_or_permission:Administrator|time_boxing.view')->name('time-boxing.options');
+    Route::post('/time-boxing', [TimeBoxingsController::class, 'store'])->middleware('role_or_permission:Administrator|time_boxing.create')->name('time-boxing.store');
+    Route::put('/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'update'])->middleware('role_or_permission:Administrator|time_boxing.update')->name('time-boxing.update');
+    Route::delete('/time-boxing/{timeBoxing}', [TimeBoxingsController::class, 'destroy'])->middleware('role_or_permission:Administrator|time_boxing.delete')->name('time-boxing.destroy');
+
+    Route::get('/projects-old', function () {
         return Inertia::render('Projects/Index', [
             'html' => TemplatePage::fragment('project-page.html'),
         ]);
-    })->name('projects.index');
+    })->name('projects-old.index');
 
     Route::get('/contacts', function () {
         return Inertia::render('Contacts/Index', [

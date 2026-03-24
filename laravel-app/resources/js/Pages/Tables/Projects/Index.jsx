@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
 import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
 import DatePickerInput from '@/Components/DatePickerInput';
@@ -17,9 +17,28 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
-    const [q, setQ] = useState(filters?.q ?? '');
+    const [openMenu, setOpenMenu] = useState(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+    const [menuWidth, setMenuWidth] = useState(320);
+    const menuRef = useRef(null);
+
     const [partnerLookupQuery, setPartnerLookupQuery] = useState('');
     const [showPartnerPicker, setShowPartnerPicker] = useState(false);
+    const [picLookupQuery, setPicLookupQuery] = useState('');
+    const [showPicPicker, setShowPicPicker] = useState(false);
+    const [picPickerRowIndex, setPicPickerRowIndex] = useState(null);
+
+    const [sortBy, setSortBy] = useState(filters?.sort_by ?? null);
+    const [sortDir, setSortDir] = useState(filters?.sort_dir ?? 'asc');
+    const [statusSegment, setStatusSegment] = useState(filters?.status_tab ?? 'running');
+    const [filterPartnerIdsValue, setFilterPartnerIdsValue] = useState((filters?.partner_ids ?? []).map(String));
+    const [filterTypesValue, setFilterTypesValue] = useState(filters?.types ?? []);
+    const [filterStatusesValue, setFilterStatusesValue] = useState(filters?.statuses ?? []);
+    const [filterStartFromValue, setFilterStartFromValue] = useState(displayDateValue(filters?.start_from));
+    const [filterStartToValue, setFilterStartToValue] = useState(displayDateValue(filters?.start_to));
+    const [partnerFilterQuery, setPartnerFilterQuery] = useState('');
+    const [typeFilterQuery, setTypeFilterQuery] = useState('');
+    const [statusFilterQuery, setStatusFilterQuery] = useState('');
 
     const rows = projects?.data ?? [];
 
@@ -67,13 +86,165 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         ]);
     }, [rows, pageSearchQuery]);
 
-    const applyHref = useMemo(() => {
-        const params = {};
-        if (q && q.trim()) params.q = q.trim();
-        return route('tables.projects.index', params);
-    }, [q]);
+    useEffect(() => {
+        setSortBy(filters?.sort_by ?? null);
+        setSortDir(filters?.sort_dir ?? 'asc');
+        setStatusSegment(filters?.status_tab ?? 'running');
+        setFilterPartnerIdsValue((filters?.partner_ids ?? []).map(String));
+        setFilterTypesValue(filters?.types ?? []);
+        setFilterStatusesValue(filters?.statuses ?? []);
+        setFilterStartFromValue(displayDateValue(filters?.start_from));
+        setFilterStartToValue(displayDateValue(filters?.start_to));
+    }, [filters]);
 
-    const resetHref = route('tables.projects.index');
+    useEffect(() => {
+        if (!openMenu) return;
+        const onDown = (e) => {
+            if (menuRef.current && menuRef.current.contains(e.target)) return;
+            const target = e.target;
+            if (target && typeof target.closest === 'function') {
+                if (target.closest('.datepicker') || target.closest('.datepicker-dropdown')) return;
+            }
+            setOpenMenu(null);
+        };
+        window.addEventListener('mousedown', onDown);
+        return () => window.removeEventListener('mousedown', onDown);
+    }, [openMenu]);
+
+    const buildParams = (overrides = {}) => {
+        const params = {
+            status_tab: statusSegment || 'running',
+            sort_by: sortBy || '',
+            sort_dir: sortDir || 'asc',
+            partner_ids: filterPartnerIdsValue.map((v) => Number(v)),
+            types: filterTypesValue,
+            statuses: filterStatusesValue,
+            start_from: parseDateDdMmmYyToIso(filterStartFromValue) || '',
+            start_to: parseDateDdMmmYyToIso(filterStartToValue) || '',
+            ...overrides,
+        };
+
+        const clean = {};
+        Object.entries(params).forEach(([k, v]) => {
+            if (v === null || v === undefined) return;
+            if (Array.isArray(v)) {
+                if (v.length === 0) return;
+            } else {
+                const s = String(v);
+                if (s === '') return;
+                if (k === 'status_tab' && s === 'running') return;
+                if (k === 'sort_dir') {
+                    const sb = String(params.sort_by ?? '');
+                    if (!sb) return;
+                    if (s === 'asc') return;
+                }
+            }
+            if (k === 'sort_by' && String(v) === '') return;
+            clean[k] = v;
+        });
+        return clean;
+    };
+
+    const gotoWith = (overrides = {}) => {
+        const params = buildParams(overrides);
+        router.get(route('projects.index', params, false), {}, { preserveScroll: true, preserveState: true, replace: true });
+    };
+
+    const openHeaderMenu = (key, e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const padding = 24;
+        const maxWidth = 360;
+        const width = Math.min(maxWidth, Math.max(280, window.innerWidth - padding * 2));
+        const viewportLeft = 0;
+        const viewportRight = window.innerWidth;
+
+        let left = rect.left;
+        if (left + width > viewportRight - padding) {
+            left = rect.right - width;
+        }
+        left = Math.max(viewportLeft + padding, Math.min(left, viewportRight - padding - width));
+
+        setMenuWidth(width);
+        setMenuPos({ top: rect.bottom + 6, left });
+        setPartnerFilterQuery('');
+        setTypeFilterQuery('');
+        setStatusFilterQuery('');
+        setOpenMenu(key);
+    };
+
+    const sortLabel = (label, key) => {
+        if (sortBy !== key) return label;
+        return `${label} ${sortDir === 'asc' ? '↑' : '↓'}`;
+    };
+
+    const partnerFilterOptions = useMemo(() => {
+        const q = String(partnerFilterQuery ?? '').toLowerCase().trim();
+        const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+        const matches = (p) => {
+            if (tokens.length === 0) return true;
+            const hay = `${p?.cnc_id ?? ''} ${p?.name ?? ''}`.toLowerCase();
+            return tokens.every((t) => hay.includes(t));
+        };
+        return (partners ?? [])
+            .filter(matches)
+            .sort((a, b) => {
+                const ai = Number(a?.cnc_id);
+                const bi = Number(b?.cnc_id);
+                if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return ai - bi;
+                return String(a?.cnc_id ?? '').localeCompare(String(b?.cnc_id ?? '')) || String(a?.name ?? '').localeCompare(String(b?.name ?? ''));
+            })
+            .slice(0, 30);
+    }, [partnerFilterQuery, partners]);
+
+    const typeOptionsList = useMemo(() => {
+        const base = optionList('type')
+            .map((o) => String(o?.name ?? '').trim())
+            .filter((v) => v !== '');
+        base.sort((a, b) => a.localeCompare(b));
+        const q = String(typeFilterQuery ?? '').toLowerCase().trim();
+        if (!q) return base;
+        const tokens = q.split(/\s+/).filter(Boolean);
+        return base.filter((t) => tokens.every((x) => t.toLowerCase().includes(x)));
+    }, [setupOptions, typeFilterQuery]);
+
+    const statusOptionsList = useMemo(() => {
+        const base = optionList('status')
+            .map((o) => String(o?.name ?? '').trim())
+            .filter((v) => v !== '');
+        base.sort((a, b) => a.localeCompare(b));
+        const q = String(statusFilterQuery ?? '').toLowerCase().trim();
+        if (!q) return base;
+        const tokens = q.split(/\s+/).filter(Boolean);
+        return base.filter((t) => tokens.every((x) => t.toLowerCase().includes(x)));
+    }, [setupOptions, statusFilterQuery]);
+
+    const filterSummary = useMemo(() => {
+        const parts = [];
+
+        if ((filterPartnerIdsValue ?? []).length) {
+            const byId = new Map((partners ?? []).map((p) => [String(p.id), p]));
+            const labels = (filterPartnerIdsValue ?? [])
+                .map((id) => {
+                    const p = byId.get(String(id));
+                    if (!p) return String(id);
+                    return p.cnc_id ? String(p.cnc_id) : String(id);
+                })
+                .filter(Boolean);
+            if (labels.length) parts.push(`Partner: ${labels.join(', ')}`);
+        }
+
+        if ((filterTypesValue ?? []).length) parts.push(`Type: ${(filterTypesValue ?? []).join(', ')}`);
+
+        if (filterStartFromValue || filterStartToValue) {
+            const from = filterStartFromValue || '-';
+            const to = filterStartToValue || '-';
+            parts.push(`Start Date: ${from} s/d ${to}`);
+        }
+
+        if ((filterStatusesValue ?? []).length) parts.push(`Status: ${(filterStatusesValue ?? []).join(', ')}`);
+
+        return parts.join(' | ');
+    }, [filterPartnerIdsValue, filterStartFromValue, filterStartToValue, filterStatusesValue, filterTypesValue, partners]);
 
 
     const { data, setData, post, put, delete: destroy, processing, errors, reset, clearErrors } = useForm({
@@ -125,15 +296,26 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [showPartnerPicker]);
 
-    const optionList = (key) => (setupOptions?.[key] ?? []).map((o) => (typeof o === 'string' ? { name: o, status: 'Active' } : o));
+    useEffect(() => {
+        if (!showPicPicker) return;
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') setShowPicPicker(false);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [showPicPicker]);
 
-    const renderSetupOptions = (key, selectedValue) => {
+    function optionList(key) {
+        return (setupOptions?.[key] ?? []).map((o) => (typeof o === 'string' ? { name: o, status: 'Active' } : o));
+    }
+
+    const renderSetupOptions = (key, selectedValue, allowBlank = true) => {
         const items = optionList(key);
         const selected = String(selectedValue ?? '');
 
         return (
             <>
-                <option value="">-</option>
+                {allowBlank ? <option value="">-</option> : null}
                 {items
                     .map((o) => ({ name: String(o?.name ?? ''), status: String(o?.status ?? 'Active') }))
                     .filter((o) => o.name !== '')
@@ -226,6 +408,48 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         return status === 'Active' ? `${cnc} - ${name}` : `${cnc} - ${name} (${status})`;
     }, [selectedPartner]);
 
+    const picLookup = useMemo(() => {
+        const row = typeof picPickerRowIndex === 'number' ? (data.pic_assignments ?? [])[picPickerRowIndex] : null;
+        const selectedId = row?.pic_user_id ? String(row.pic_user_id) : '';
+        const selected = selectedId ? (users ?? []).find((u) => String(u.id) === selectedId) ?? null : null;
+
+        const tokens = String(picLookupQuery ?? '')
+            .toLowerCase()
+            .trim()
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter(Boolean);
+
+        const activeUsers = (users ?? []).filter((u) => String(u?.status ?? 'Active') === 'Active');
+
+        const matches = (u) => {
+            if (tokens.length === 0) return true;
+            const hay = `${u?.full_name ?? ''} ${u?.name ?? ''} ${u?.email ?? ''}`.toLowerCase();
+            return tokens.every((t) => hay.includes(t));
+        };
+
+        const items = activeUsers
+            .filter(matches)
+            .sort((a, b) => String(a?.full_name ?? a?.name ?? '').localeCompare(String(b?.full_name ?? b?.name ?? '')));
+
+        const selectedIsActive = selected ? String(selected?.status ?? 'Active') === 'Active' : false;
+        return { selected, selectedIsActive, items };
+    }, [data.pic_assignments, picLookupQuery, picPickerRowIndex, users]);
+
+    const openPicPicker = (rowIndex) => {
+        setPicLookupQuery('');
+        setPicPickerRowIndex(rowIndex);
+        setShowPicPicker(true);
+    };
+
+    const selectPicUserId = (id) => {
+        if (typeof picPickerRowIndex !== 'number') return;
+        updatePicRow(picPickerRowIndex, 'pic_user_id', id ? String(id) : '');
+        setShowPicPicker(false);
+        setPicLookupQuery('');
+        setPicPickerRowIndex(null);
+    };
+
     const computed = useMemo(() => {
         const startIso = parseDateDdMmmYyToIso(data.start_date);
         const endIso = parseDateDdMmmYyToIso(data.end_date);
@@ -254,6 +478,9 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         reset();
         setPartnerLookupQuery('');
         setShowPartnerPicker(false);
+        setPicLookupQuery('');
+        setShowPicPicker(false);
+        setPicPickerRowIndex(null);
         setData({
             cnc_id: '',
             pic_assignments: [{ pic_user_id: '', start_date: '', end_date: '' }],
@@ -262,10 +489,10 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
             assignment: '',
             project_information: projectInformationOptions?.[1] ?? 'Submission',
             pic_assignment: picAssignmentOptions?.[1] ?? 'Request',
-            type: '',
+            type: 'Maintenance',
             start_date: '',
             end_date: '',
-            status: '',
+            status: 'Scheduled',
             handover_official_report: '',
             kpi2_pic: '',
             check_official_report: '',
@@ -292,6 +519,9 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         clearErrors();
         setPartnerLookupQuery('');
         setShowPartnerPicker(false);
+        setPicLookupQuery('');
+        setShowPicPicker(false);
+        setPicPickerRowIndex(null);
         setData({
             cnc_id: p.cnc_id ?? '',
             pic_assignments: (p.pic_assignments && p.pic_assignments.length ? p.pic_assignments.map((r) => ({ pic_user_id: r.pic_user_id ?? '', start_date: r.start_date ? displayDateValue(r.start_date) : '', end_date: r.end_date ? displayDateValue(r.end_date) : '' })) : (p.pic_user_id ? [{ pic_user_id: p.pic_user_id, start_date: p.start_date ? displayDateValue(p.start_date) : '', end_date: p.end_date ? displayDateValue(p.end_date) : '' }] : [{ pic_user_id: '', start_date: '', end_date: '' }])),
@@ -330,6 +560,9 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         setEditingId(null);
         setPartnerLookupQuery('');
         setShowPartnerPicker(false);
+        setPicLookupQuery('');
+        setShowPicPicker(false);
+        setPicPickerRowIndex(null);
         clearErrors();
     };
 
@@ -360,7 +593,7 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
         };
 
         if (editingId) {
-            put(route('tables.projects.update', { project: editingId }), {
+            put(route('projects.update', { project: editingId }, false), {
                 preserveScroll: true,
                 data: payload,
                 onSuccess: () => closeModal(),
@@ -368,7 +601,7 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
             return;
         }
 
-        post(route('tables.projects.store'), {
+        post(route('projects.store', {}, false), {
             preserveScroll: true,
             data: payload,
             onSuccess: () => closeModal(),
@@ -377,7 +610,7 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
 
     const doDelete = (p) => {
         if (!window.confirm(`Delete project: ${p.project_name || p.id}?`)) return;
-        destroy(route('tables.projects.destroy', { project: p.id }), {
+        destroy(route('projects.destroy', { project: p.id }, false), {
             preserveScroll: true,
         });
     };
@@ -392,15 +625,9 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                         <div className="card-header">
                             <div>
                                 <h4 className="card-title mb-0">Tables &gt; Projects</h4>
-                                <p className="mb-0 text-muted">Showing {projects?.from ?? 0}-{projects?.to ?? 0} of {projects?.total ?? 0} (On this page: {filteredProjects.length})</p>
+                                <p className="mb-0 text-muted">Showing {projects?.from ?? 0}-{projects?.to ?? 0} of {projects?.total ?? 0}</p>
                             </div>
                             <div className="d-flex flex-wrap gap-2">
-                                <Link href={applyHref} className="btn btn-primary">
-                                    Apply
-                                </Link>
-                                <Link href={resetHref} className="btn btn-outline-secondary">
-                                    Reset
-                                </Link>
                                 <button type="button" className="btn btn-success" onClick={openCreate}>
                                     New
                                 </button>
@@ -409,16 +636,35 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
 
                         <div className="card-body">
                             <div className="row mb-3">
-                                <div className="col-12">
-                                    <label className="text-black font-w600 form-label">Search (server)</label>
-                                    <input type="text" className="form-control" value={q} onChange={(e) => setQ(e.target.value)} placeholder="cnc id, project name, partner, PIC, status..." />
-                                    <small className="text-muted">Search ini memfilter via server saat klik Apply. Search di header sidebar tetap memfilter data yang sedang tampil.</small>
+                                <div className="col-12 d-flex gap-2 align-items-center">
+                                    <div className="btn-group" role="group" aria-label="Status filter">
+                                        {[
+                                            { key: 'all', label: 'All Status' },
+                                            { key: 'running', label: 'Running' },
+                                            { key: 'planning', label: 'Planning' },
+                                            { key: 'document', label: 'Document' },
+                                            { key: 'document_check', label: 'Document Check' },
+                                            { key: 'done', label: 'Done' },
+                                            { key: 'rejected', label: 'Rejected' },
+                                        ].map((s) => {
+                                            const href = route('projects.index', buildParams({ status_tab: s.key }), false);
+                                            const active = statusSegment === s.key;
+                                            return (
+                                                <Link key={s.key} href={href} className={`btn btn-sm ${active ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setStatusSegment(s.key)}>
+                                                    {s.label}
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                    <small className="text-muted ms-2">Default tampilan: Running</small>
                                 </div>
                             </div>
-
                             <div className="d-flex justify-content-between align-items-center mb-2">
-                                <div className="text-muted">
-                                    Showing {projects?.from ?? 0}-{projects?.to ?? 0} of {projects?.total ?? 0}
+                                <div className="text-muted d-flex flex-wrap gap-2 align-items-center">
+                                    <span>
+                                        Showing {projects?.from ?? 0}-{projects?.to ?? 0} of {projects?.total ?? 0}
+                                    </span>
+                                    {filterSummary ? <span>| {filterSummary}</span> : null}
                                 </div>
                                 <div className="d-flex gap-2">
                                     <Link href={projects?.prev_page_url ?? '#'} className={`btn btn-sm btn-outline-secondary ${projects?.prev_page_url ? '' : 'disabled'}`}>
@@ -438,12 +684,28 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                                             <th style={{ width: 80 }}>ID</th>
                                             <th style={{ width: 110 }}>CNC ID</th>
                                             <th>Project</th>
-                                            <th style={{ width: 220 }}>Partner</th>
+                                            <th style={{ width: 220 }}>
+                                                <button type="button" className="btn btn-link p-0 text-decoration-none" onClick={(e) => openHeaderMenu('partner', e)}>
+                                                    {sortLabel('Partner', 'partner')}
+                                                </button>
+                                            </th>
                                             <th style={{ width: 220 }}>PIC</th>
-                                            <th style={{ width: 140 }}>Type</th>
-                                            <th style={{ width: 160 }}>Start</th>
-                                            <th style={{ width: 160 }}>End</th>
-                                            <th style={{ width: 120 }}>Status</th>
+                                            <th style={{ width: 140 }}>
+                                                <button type="button" className="btn btn-link p-0 text-decoration-none" onClick={(e) => openHeaderMenu('type', e)}>
+                                                    {sortLabel('Type', 'type')}
+                                                </button>
+                                            </th>
+                                            <th style={{ width: 160 }}>
+                                                <button type="button" className="btn btn-link p-0 text-decoration-none" onClick={(e) => openHeaderMenu('start_date', e)}>
+                                                    {sortLabel('Start Date', 'start_date')}
+                                                </button>
+                                            </th>
+                                            <th style={{ width: 160 }}>End Date</th>
+                                            <th style={{ width: 120 }}>
+                                                <button type="button" className="btn btn-link p-0 text-decoration-none" onClick={(e) => openHeaderMenu('status', e)}>
+                                                    {sortLabel('Status', 'status')}
+                                                </button>
+                                            </th>
                                             <th style={{ width: 160 }} />
                                         </tr>
                                     </thead>
@@ -487,6 +749,261 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                                     </tbody>
                                 </table>
                             </div>
+
+                            {openMenu ? (
+                                <div
+                                    ref={menuRef}
+                                    className="card shadow-sm"
+                                    style={{
+                                        position: 'fixed',
+                                        top: menuPos.top,
+                                        left: menuPos.left,
+                                        zIndex: 1050,
+                                        width: menuWidth,
+                                    }}
+                                >
+                                    <div className="card-body p-3">
+                                        <div className="d-flex justify-content-between align-items-center mb-2">
+                                            <div className="fw-semibold">Sort</div>
+                                            <button type="button" className="btn-close" onClick={() => setOpenMenu(null)} />
+                                        </div>
+
+                                        <div className="d-flex gap-2 mb-3">
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-secondary"
+                                                onClick={() => {
+                                                    setSortBy(openMenu);
+                                                    setSortDir('asc');
+                                                    gotoWith({ sort_by: openMenu, sort_dir: 'asc' });
+                                                    setOpenMenu(null);
+                                                }}
+                                            >
+                                                Asc
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-secondary"
+                                                onClick={() => {
+                                                    setSortBy(openMenu);
+                                                    setSortDir('desc');
+                                                    gotoWith({ sort_by: openMenu, sort_dir: 'desc' });
+                                                    setOpenMenu(null);
+                                                }}
+                                            >
+                                                Desc
+                                            </button>
+                                        </div>
+
+                                        {openMenu === 'partner' ? (
+                                            <>
+                                                <div className="fw-semibold mb-2">Filter</div>
+                                                <input
+                                                    className="form-control mb-2"
+                                                    placeholder="Search partner..."
+                                                    value={partnerFilterQuery}
+                                                    onChange={(e) => setPartnerFilterQuery(e.target.value)}
+                                                />
+                                                <div className="list-group mb-3" style={{ maxHeight: 240, overflow: 'auto' }}>
+                                                    {partnerFilterOptions.map((p) => {
+                                                        const id = String(p.id);
+                                                        const checked = (filterPartnerIdsValue ?? []).includes(id);
+                                                        return (
+                                                            <label key={p.id} className="list-group-item d-flex align-items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={(e) => {
+                                                                        const next = e.target.checked
+                                                                            ? Array.from(new Set([...(filterPartnerIdsValue ?? []), id]))
+                                                                            : (filterPartnerIdsValue ?? []).filter((x) => x !== id);
+                                                                        setFilterPartnerIdsValue(next);
+                                                                    }}
+                                                                />
+                                                                <span>
+                                                                    {p.cnc_id} - {p.name}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="d-flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-primary"
+                                                        onClick={() => {
+                                                            gotoWith({});
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Apply
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-outline-secondary"
+                                                        onClick={() => {
+                                                            setFilterPartnerIdsValue([]);
+                                                            gotoWith({ partner_ids: [] });
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : null}
+
+                                        {openMenu === 'type' ? (
+                                            <>
+                                                <div className="fw-semibold mb-2">Filter</div>
+                                                <input
+                                                    className="form-control mb-2"
+                                                    placeholder="Search type..."
+                                                    value={typeFilterQuery}
+                                                    onChange={(e) => setTypeFilterQuery(e.target.value)}
+                                                />
+                                                <div className="list-group mb-3" style={{ maxHeight: 240, overflow: 'auto' }}>
+                                                    {typeOptionsList.map((t) => {
+                                                        const checked = (filterTypesValue ?? []).includes(t);
+                                                        return (
+                                                            <label key={t} className="list-group-item d-flex align-items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={(e) => {
+                                                                        const next = e.target.checked
+                                                                            ? Array.from(new Set([...(filterTypesValue ?? []), t]))
+                                                                            : (filterTypesValue ?? []).filter((x) => x !== t);
+                                                                        setFilterTypesValue(next);
+                                                                    }}
+                                                                />
+                                                                <span>{t}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="d-flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-primary"
+                                                        onClick={() => {
+                                                            gotoWith({});
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Apply
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-outline-secondary"
+                                                        onClick={() => {
+                                                            setFilterTypesValue([]);
+                                                            gotoWith({ types: [] });
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : null}
+
+                                        {openMenu === 'start_date' ? (
+                                            <>
+                                                <div className="fw-semibold mb-2">Filter</div>
+                                                <div className="text-muted mb-2">Pilih Start Date From dan To, lalu klik Apply.</div>
+                                                <div className="row g-2 mb-3">
+                                                    <div className="col-6">
+                                                        <DatePickerInput value={filterStartFromValue} onChange={setFilterStartFromValue} className="form-control" />
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <DatePickerInput value={filterStartToValue} onChange={setFilterStartToValue} className="form-control" />
+                                                    </div>
+                                                </div>
+                                                <div className="d-flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-primary"
+                                                        onClick={() => {
+                                                            gotoWith({});
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Apply
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-outline-secondary"
+                                                        onClick={() => {
+                                                            setFilterStartFromValue('');
+                                                            setFilterStartToValue('');
+                                                            gotoWith({ start_from: '', start_to: '' });
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : null}
+
+                                        {openMenu === 'status' ? (
+                                            <>
+                                                <div className="fw-semibold mb-2">Filter</div>
+                                                <input
+                                                    className="form-control mb-2"
+                                                    placeholder="Search status..."
+                                                    value={statusFilterQuery}
+                                                    onChange={(e) => setStatusFilterQuery(e.target.value)}
+                                                />
+                                                <div className="list-group mb-3" style={{ maxHeight: 240, overflow: 'auto' }}>
+                                                    {statusOptionsList.map((s) => {
+                                                        const checked = (filterStatusesValue ?? []).includes(s);
+                                                        return (
+                                                            <label key={s} className="list-group-item d-flex align-items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={(e) => {
+                                                                        const next = e.target.checked
+                                                                            ? Array.from(new Set([...(filterStatusesValue ?? []), s]))
+                                                                            : (filterStatusesValue ?? []).filter((x) => x !== s);
+                                                                        setFilterStatusesValue(next);
+                                                                    }}
+                                                                />
+                                                                <span>{s}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="d-flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-primary"
+                                                        onClick={() => {
+                                                            gotoWith({});
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Apply
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-outline-secondary"
+                                                        onClick={() => {
+                                                            setFilterStatusesValue([]);
+                                                            gotoWith({ statuses: [] });
+                                                            setOpenMenu(null);
+                                                        }}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -541,8 +1058,8 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                                                         <thead>
                                                             <tr>
                                                                 <th>PIC</th>
-                                                                <th style={{ width: 160 }}>Start</th>
-                                                                <th style={{ width: 160 }}>End</th>
+                                                                <th style={{ width: 160 }}>Start Date</th>
+                                                                <th style={{ width: 160 }}>End Date</th>
                                                                 <th style={{ width: 90 }} />
                                                             </tr>
                                                         </thead>
@@ -555,18 +1072,27 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                                                                 return (
                                                                     <tr key={index}>
                                                                         <td>
-                                                                            <select
-                                                                                className={`form-select form-select-sm ${errUser ? 'is-invalid' : ''}`}
-                                                                                value={row.pic_user_id ?? ''}
-                                                                                onChange={(e) => updatePicRow(index, 'pic_user_id', e.target.value)}
-                                                                            >
-                                                                                <option value="">-</option>
-                                                                                {(users ?? []).map((u) => (
-                                                                                    <option key={u.id} value={u.id}>
-                                                                                        {(u.full_name || u.name) + (u.email ? ` (${u.email})` : '')}
-                                                                                    </option>
-                                                                                ))}
-                                                                            </select>
+                                                                            <div className="input-group input-group-sm">
+                                                                                <input
+                                                                                    className={`form-control ${errUser ? 'is-invalid' : ''}`}
+                                                                                    placeholder="Select PIC (Active only)..."
+                                                                                    value={(() => {
+                                                                                        const uid = row.pic_user_id ? String(row.pic_user_id) : '';
+                                                                                        if (!uid) return '';
+                                                                                        const u = (users ?? []).find((x) => String(x.id) === uid);
+                                                                                        if (!u) return uid;
+                                                                                        const name = u.full_name || u.name || '';
+                                                                                        const email = u.email ? ` (${u.email})` : '';
+                                                                                        const status = u.status ?? 'Active';
+                                                                                        return status === 'Active' ? `${name}${email}` : `${name}${email} (${status})`;
+                                                                                    })()}
+                                                                                    readOnly
+                                                                                    onClick={() => openPicPicker(index)}
+                                                                                />
+                                                                                <button type="button" className="btn btn-outline-secondary" onClick={() => updatePicRow(index, 'pic_user_id', '')} disabled={!row.pic_user_id}>
+                                                                                    Clear
+                                                                                </button>
+                                                                            </div>
                                                                             {errUser ? <div className="invalid-feedback">{errUser}</div> : null}
                                                                         </td>
                                                                         <td>
@@ -645,7 +1171,7 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Type</label>
                                                 <select className={`form-select ${errors.type ? 'is-invalid' : ''}`} value={data.type} onChange={(e) => setData('type', e.target.value)}>
-                                                    {renderSetupOptions('type', data.type)}
+                                                    {renderSetupOptions('type', data.type, false)}
                                                 </select>
                                                 {errors.type ? <div className="invalid-feedback">{errors.type}</div> : null}
                                             </div>
@@ -665,7 +1191,7 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                                             <div className="col-lg-3 mb-3">
                                                 <label className="text-black font-w600 form-label">Status</label>
                                                 <select className={`form-select ${errors.status ? 'is-invalid' : ''}`} value={data.status} onChange={(e) => setData('status', e.target.value)}>
-                                                    {renderSetupOptions('status', data.status)}
+                                                    {renderSetupOptions('status', data.status, false)}
                                                 </select>
                                                 {errors.status ? <div className="invalid-feedback">{errors.status}</div> : null}
                                             </div>
@@ -845,6 +1371,61 @@ export default function ProjectsIndex({ projects, filters, partners, users, setu
                         </div>
                     </div>
                     <div className="modal-backdrop fade show" onClick={() => setShowPartnerPicker(false)} />
+                </>
+            ) : null}
+
+            {showModal && showPicPicker ? (
+                <>
+                    <div className="modal fade show" style={{ display: 'block' }} role="dialog" aria-modal="true">
+                        <div className="modal-dialog modal-dialog-centered modal-lg" role="document">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h5 className="modal-title">Select PIC (Active)</h5>
+                                    <button type="button" className="btn-close" onClick={() => setShowPicPicker(false)} />
+                                </div>
+                                <div className="modal-body">
+                                    <div className="mb-3">
+                                        <input
+                                            className="form-control"
+                                            placeholder="Search by Name or Email..."
+                                            value={picLookupQuery}
+                                            onChange={(e) => setPicLookupQuery(e.target.value)}
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div className="list-group" style={{ maxHeight: 420, overflow: 'auto' }}>
+                                        <button type="button" className="list-group-item list-group-item-action" onClick={() => selectPicUserId('')}>
+                                            -
+                                        </button>
+
+                                        {picLookup.selected && !picLookup.selectedIsActive ? (
+                                            <div className="list-group-item text-muted">
+                                                Selected: {(picLookup.selected.full_name || picLookup.selected.name) + (picLookup.selected.email ? ` (${picLookup.selected.email})` : '')} ({picLookup.selected.status ?? 'Inactive'})
+                                            </div>
+                                        ) : null}
+
+                                        {picLookup.items.map((u) => (
+                                            <button
+                                                key={u.id}
+                                                type="button"
+                                                className="list-group-item list-group-item-action"
+                                                onClick={() => selectPicUserId(u.id)}
+                                            >
+                                                {(u.full_name || u.name) + (u.email ? ` (${u.email})` : '')}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-outline-secondary" onClick={() => setShowPicPicker(false)}>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-backdrop fade show" onClick={() => setShowPicPicker(false)} />
                 </>
             ) : null}
         </>

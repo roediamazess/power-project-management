@@ -40,30 +40,47 @@ class AuditLogsController extends Controller
     public function index(Request $request): Response
     {
         $data = $request->validate([
-            'module' => ['nullable', 'string', Rule::in(self::MODULES)],
-            'action' => ['nullable', 'string', Rule::in(self::ACTIONS)],
+            'modules' => ['nullable', 'array'],
+            'modules.*' => ['string', Rule::in(self::MODULES)],
+            'actions' => ['nullable', 'array'],
+            'actions.*' => ['string', Rule::in(self::ACTIONS)],
+            'actor_ids' => ['nullable', 'array'],
+            'actor_ids.*' => ['integer', 'exists:users,id'],
             'q' => ['nullable', 'string', 'max:200'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'sort_by' => ['nullable', 'string', Rule::in(['no', 'module', 'action', 'actor', 'time'])],
+            'sort_dir' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
         ]);
 
-        $module = $data['module'] ?? 'all';
-        $action = $data['action'] ?? 'all';
+        $modules = $data['modules'] ?? [];
+        $actions = $data['actions'] ?? [];
+        $actorIds = $data['actor_ids'] ?? [];
         $q = trim((string) ($data['q'] ?? ''));
         $dateFrom = $data['date_from'] ?? null;
         $dateTo = $data['date_to'] ?? null;
+        $sortBy = $data['sort_by'] ?? null;
+        $sortDir = $data['sort_dir'] ?? 'desc';
 
         $query = AuditLog::query()
             ->with(['actor:id,name,email'])
             ->orderByDesc('id');
 
-        if ($module !== 'all') {
-            $modelTypes = $this->modelTypesForModule($module);
-            $query->whereIn('model_type', $modelTypes);
+        if (is_array($modules) && count($modules)) {
+            $types = [];
+            foreach ($modules as $m) {
+                $types = array_merge($types, $this->modelTypesForModule($m));
+            }
+            $types = array_values(array_unique($types));
+            if ($types) $query->whereIn('model_type', $types);
         }
 
-        if ($action !== 'all') {
-            $query->where('action', $action);
+        if (is_array($actions) && count($actions)) {
+            $query->whereIn('action', $actions);
+        }
+
+        if (is_array($actorIds) && count($actorIds)) {
+            $query->whereIn('actor_user_id', $actorIds);
         }
 
         if ($q !== '') {
@@ -85,17 +102,39 @@ class AuditLogsController extends Controller
             }
         }
 
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', Carbon::parse($dateFrom)->toDateString());
+        }
+
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', Carbon::parse($dateTo)->toDateString());
+        }
+
+        if ($sortBy) {
+            match ($sortBy) {
+                'no' => $query->orderBy('id', $sortDir),
+                'module' => $query->orderBy('model_type', $sortDir)->orderBy('id', 'desc'),
+                'action' => $query->orderBy('action', $sortDir)->orderBy('id', 'desc'),
+                'actor' => $query->orderBy('actor_user_id', $sortDir)->orderBy('id', 'desc'),
+                'time' => $query->orderBy('created_at', $sortDir)->orderBy('id', 'desc'),
+                default => null,
+            };
+        }
+
         $logs = $query->paginate(50)->withQueryString();
         $logs = $this->mapPaginator($logs);
 
         return Inertia::render('Tables/AuditLogs/Index', [
             'logs' => $logs,
             'filters' => [
-                'module' => $module,
-                'action' => $action,
+                'modules' => $modules,
+                'actions' => $actions,
+                'actor_ids' => $actorIds,
                 'q' => $q,
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
+                'sort_by' => $sortBy,
+                'sort_dir' => $sortDir,
             ],
             'modules' => [
                 ['key' => 'all', 'label' => 'All'],

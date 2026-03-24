@@ -282,7 +282,7 @@ class TimeBoxingsController extends Controller
             AuditLog::record($request, 'create', TimeBoxing::class, (string) $timeBoxing->id, null, $timeBoxing->fresh()->toArray());
         });
 
-        return redirect()->route('tables.time-boxing.index');
+        return redirect()->route('time-boxing.index');
     }
 
     public function update(Request $request, TimeBoxing $timeBoxing): RedirectResponse
@@ -296,7 +296,7 @@ class TimeBoxingsController extends Controller
             AuditLog::record($request, 'update', TimeBoxing::class, (string) $timeBoxing->id, $before, $after);
         });
 
-        return redirect()->route('tables.time-boxing.index');
+        return redirect()->route('time-boxing.index');
     }
 
     public function destroy(Request $request, TimeBoxing $timeBoxing): RedirectResponse
@@ -308,7 +308,7 @@ class TimeBoxingsController extends Controller
             AuditLog::record($request, 'delete', TimeBoxing::class, $id, $before, null);
         });
 
-        return redirect()->route('tables.time-boxing.index');
+        return redirect()->route('time-boxing.index');
     }
 
     private function validateTimeBoxing(Request $request): array
@@ -330,6 +330,13 @@ class TimeBoxingsController extends Controller
     private function applyComputedFields(array $data, ?TimeBoxing $current): array
     {
         $next = $data;
+
+        if (! array_key_exists('no', $next) || empty($next['no'])) {
+            if (DB::getDriverName() !== 'pgsql') {
+                $max = (int) (TimeBoxing::query()->max('no') ?? 0);
+                $next['no'] = $max + 1;
+            }
+        }
 
         $wasCompleted = $current ? ($current->status === 'Completed') : false;
         $isCompleted = ($next['status'] ?? null) === 'Completed';

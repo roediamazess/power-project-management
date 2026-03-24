@@ -360,7 +360,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
         };
 
         if (editingId) {
-            put(route('tables.time-boxing.update', { timeBoxing: editingId }), {
+            put(route('time-boxing.update', { timeBoxing: editingId }, false), {
                 preserveScroll: true,
                 data: payload,
                 onSuccess: () => closeModal(),
@@ -368,7 +368,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
             return;
         }
 
-        post(route('tables.time-boxing.store'), {
+        post(route('time-boxing.store', {}, false), {
             preserveScroll: true,
             data: payload,
             onSuccess: () => closeModal(),
@@ -377,7 +377,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
 
     const doDelete = (t) => {
         if (!window.confirm(`Delete Time Boxing #${t.no}?`)) return;
-        destroy(route('tables.time-boxing.destroy', { timeBoxing: t.id }), {
+        destroy(route('time-boxing.destroy', { timeBoxing: t.id }, false), {
             preserveScroll: true,
         });
     };
@@ -396,7 +396,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
         const nextDir = sortBy === key ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
         params.sort_by = key;
         params.sort_dir = nextDir;
-        return route('tables.time-boxing.index', params);
+        return route('time-boxing.index', params, false);
     };
 
     const sortLabel = (label, key) => {
@@ -445,7 +445,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
 
     const gotoWith = (overrides = {}) => {
         const params = buildParams(overrides);
-        router.get(route('tables.time-boxing.index', params), {}, { preserveScroll: true, preserveState: true, replace: true });
+        router.get(route('time-boxing.index', params, false), {}, { preserveScroll: true, preserveState: true, replace: true });
     };
 
     const ensureOptions = async (statusKey) => {
@@ -453,7 +453,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
         if (optionsCache[k]) return optionsCache[k];
         setOptionsLoading(true);
         try {
-            const url = route('tables.time-boxing.options', k === 'active' ? {} : { status: k });
+            const url = route('time-boxing.options', k === 'active' ? {} : { status: k }, false);
             const res = await fetch(url, { headers: { Accept: 'application/json' } });
             const json = await res.json();
             setOptionsCache((prev) => ({ ...prev, [k]: json }));
@@ -596,7 +596,7 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
                                 <div className="col-12 d-flex gap-2 align-items-center">
                                     <div className="btn-group" role="group" aria-label="Status filter">
                                         {statusSegments.map((s) => {
-                                            const href = route('tables.time-boxing.index', buildParams({ status: s.key }));
+                                            const href = route('time-boxing.index', buildParams({ status: s.key }), false);
                                             const active = statusSegment === s.key;
                                             return (
                                                 <Link

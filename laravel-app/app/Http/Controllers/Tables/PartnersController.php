@@ -143,7 +143,7 @@ class PartnersController extends Controller
             AuditLog::record($request, 'create', Partner::class, (string) $partner->id, null, $partner->fresh()->toArray());
         });
 
-        return redirect()->route('tables.partners.index');
+        return redirect()->route('partners.index');
     }
 
     public function update(Request $request, Partner $partner): RedirectResponse
@@ -157,7 +157,7 @@ class PartnersController extends Controller
             AuditLog::record($request, 'update', Partner::class, (string) $partner->id, $before, $after);
         });
 
-        return redirect()->route('tables.partners.index');
+        return redirect()->route('partners.index');
     }
 
     public function destroy(Request $request, Partner $partner): RedirectResponse
@@ -169,7 +169,7 @@ class PartnersController extends Controller
             AuditLog::record($request, 'delete', Partner::class, $partnerId, $before, null);
         });
 
-        return redirect()->route('tables.partners.index');
+        return redirect()->route('partners.index');
     }
 
     private function validatePartner(Request $request, ?Partner $partner = null): array

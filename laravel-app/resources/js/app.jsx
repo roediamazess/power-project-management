@@ -7,6 +7,10 @@ import { createRoot } from 'react-dom/client';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Power Project Management';
 
+if (typeof window !== 'undefined' && window.Ziggy && window.location?.origin) {
+    window.Ziggy.url = window.location.origin;
+}
+
 createInertiaApp({
     title: () => appName,
     resolve: (name) =>

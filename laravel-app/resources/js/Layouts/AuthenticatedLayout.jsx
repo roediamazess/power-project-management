@@ -178,6 +178,64 @@ export default function AuthenticatedLayout({ header, children }) {
 
     const staticVersionHistory = [
         {
+            version: 'v1.2603.5',
+            date: '2026-03-24',
+            sections: [
+                {
+                    title: 'Added',
+                    items: [
+                        'Time Boxing: header kolom bisa dibuka (popup) untuk Sort + Filter.',
+                        'Time Boxing: filter multi-select untuk Type, Priority, Partner, dan Status.',
+                        'Time Boxing: segmented status All Status | Active Status | Completed (default: Active Status).',
+                        'Time Boxing: picker Partner & Project berbasis popup (Partner: Active only; Project: bukan Done/Rejected).',
+                        'Time Boxing: dukungan filter rentang Due Date.',
+                        'Endpoint options Time Boxing untuk mengambil opsi filter berdasarkan tab status.',
+                        'Import Time Boxing dari XLSX via artisan command (lookup Partner CNC + auto-create Type).',
+                        'Version History: Referensi perubahan diblur untuk selain Administrator/Management.',
+                        'Projects: header kolom Sort + Filter (Partner, Type, Start Date, Status) + ringkasan filter aktif.',
+                        'Projects: segmented status All | Running (default) | Planning (Tentative+Scheduled) | Document | Document Check | Done | Rejected.',
+                        'Audit Logs: header kolom Sort + Filter (Module, Action, Actor, Time) + filter range tanggal.',
+                        'Audit Logs: ringkasan filter aktif (Time | Module | Action | Actor) + tampilan Changed Fields (Before vs After).',
+                        'Routing pendek aktif untuk /partners, /projects, /time-boxing, /audit-logs (CRUD dan navigasi).',
+                    ],
+                    references: [
+                        'Projects UI: resources/js/Pages/Tables/Projects/Index.jsx',
+                        'Projects controller: app/Http/Controllers/Tables/ProjectsController.php',
+                        'Audit Logs UI: resources/js/Pages/Tables/AuditLogs/Index.jsx',
+                        'Audit Logs controller: app/Http/Controllers/Tables/AuditLogsController.php',
+                        'Routing: routes/web.php',
+                    ],
+                },
+                {
+                    title: 'Fixed',
+                    items: [
+                        'Projects: perbaiki crash ringkasan filter karena deklarasi fungsi (hoisting).',
+                        'Navigasi: pastikan semua route() relative ke origin aktif agar tidak pindah domain.',
+                        'Time Boxing (test env): fallback penomoran no untuk non-PostgreSQL.',
+                    ],
+                    references: [
+                        'Projects UI: resources/js/Pages/Tables/Projects/Index.jsx',
+                        'Ziggy origin: resources/js/app.jsx',
+                        'TimeBoxing controller: app/Http/Controllers/Tables/TimeBoxingsController.php',
+                    ],
+                },
+                {
+                    title: 'Changed',
+                    items: [
+                        'Projects: hapus Search (server) + tombol Apply/Reset; label End → End Date.',
+                        'Audit Logs: sembunyikan Meta dan blok Before/After mentah; hanya tampilkan Changed Fields; sembunyikan field attachment/file/photo/avatar.',
+                        'Semua form & redirect CRUD memakai route pendek (/partners, /projects, /time-boxing, /audit-logs).',
+                    ],
+                    references: [
+                        'Projects UI: resources/js/Pages/Tables/Projects/Index.jsx',
+                        'Audit Logs UI: resources/js/Pages/Tables/AuditLogs/Index.jsx',
+                        'Layouts: resources/js/Layouts/AuthenticatedLayout.jsx',
+                        'Routing: routes/web.php',
+                    ],
+                },
+            ],
+        },
+        {
             version: 'v1.2603.4',
             date: '2026-03-23',
             sections: [
@@ -1002,35 +1060,35 @@ export default function AuthenticatedLayout({ header, children }) {
                                 </a>
                                 <ul aria-expanded="false">
                                     
-                                    <li><Link href={route('tables.user-management.index')}>User Management</Link></li>
-                                    <li><Link href={route('tables.partner-setup.index', { category: 'implementation_type' })}>Partner Setup</Link></li>
-                                    <li><Link href={route('tables.project-setup.index', { category: 'type' })}>Project Setup</Link></li>
-                                    <li><Link href={route('tables.time-boxing-setup.index', { category: 'type' })}>Time Boxing Setup</Link></li>
+                                    <li><Link href={route('tables.user-management.index', {}, false)}>User Management</Link></li>
+                                    <li><Link href={route('tables.partner-setup.index', { category: 'implementation_type' }, false)}>Partner Setup</Link></li>
+                                    <li><Link href={route('tables.project-setup.index', { category: 'type' }, false)}>Project Setup</Link></li>
+                                    <li><Link href={route('tables.time-boxing-setup.index', { category: 'type' }, false)}>Time Boxing Setup</Link></li>
 
                                     <li><Link href={route('template.show', { page: 'table-bootstrap-basic' })}>Bootstrap</Link></li>
                                     <li><Link href={route('template.show', { page: 'table-datatable-basic' })}>Datatable</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <Link href={route('tables.partners.index')} aria-expanded="false">
+                                <Link href={route('partners.index', {}, false)} aria-expanded="false">
                                     <i className="fas fa-handshake" />
                                     <span className="nav-text">Partners</span>
                                 </Link>
                             </li>
                             <li>
-                                <Link href={route('tables.projects.index')} aria-expanded="false">
+                                <Link href={route('projects.index', {}, false)} aria-expanded="false">
                                     <i className="fas fa-clipboard-list" />
                                     <span className="nav-text">Projects</span>
                                 </Link>
                             </li>
                             <li>
-                                <Link href={route('tables.time-boxing.index')} aria-expanded="false">
+                                <Link href={route('time-boxing.index', {}, false)} aria-expanded="false">
                                     <i className="fas fa-stopwatch" />
                                     <span className="nav-text">Time Boxing</span>
                                 </Link>
                             </li>
                             <li>
-                                <Link href={route('tables.audit-logs.index')} aria-expanded="false">
+                                <Link href={route('audit-logs.index', {}, false)} aria-expanded="false">
                                     <i className="fas fa-clipboard-check" />
                                     <span className="nav-text">Audit Logs</span>
                                 </Link>

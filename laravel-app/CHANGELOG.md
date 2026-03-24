@@ -10,17 +10,28 @@
 - Time Boxing: filter rentang **Due Date** + endpoint options untuk mengambil opsi filter sesuai tab.
 - Import Time Boxing dari XLSX via artisan command `time-boxing:import` (lookup Partner CNC + auto-create Type).
 - Version History: referensi perubahan diblur untuk selain **Administrator/Management**.
+- Projects: header kolom Sort + Filter (Partner, Type, Start Date, Status) + ringkasan filter aktif.
+- Projects: segmented status tabs (All | Running (default) | Planning | Document | Document Check | Done | Rejected).
+- Audit Logs: header kolom Sort + Filter (Module, Action, Actor, Time) + filter range tanggal.
+- Audit Logs: ringkasan filter aktif (Time | Module | Action | Actor) + “Changed Fields” Before vs After.
+- Routing pendek aktif untuk **/partners**, **/projects**, **/time-boxing**, **/audit-logs** (CRUD dan navigasi).
 
 ### Fixed
 - Time Boxing: popup header tidak lagi tertutup saat memilih tanggal; Apply baru menutup popup.
 - Time Boxing: perbaiki posisi popup agar tidak terpotong di sisi kanan layar.
 - Import Time Boxing: parsing `Completed Date` lebih toleran pada format GMT.
 - Import Time Boxing: baris yang `Partner CNC`/`Type` kosong tidak lagi ter-skip (default: CNC 3, Type General).
+- Projects: crash saat render ringkasan filter karena deklarasi fungsi (di-hoist).
+- Navigasi: base URL Ziggy disetel ke origin aktif dan semua route() dikirim sebagai relative URL.
+- Time Boxing (test env): fallback penomoran `no` untuk non-PostgreSQL.
 
 ### Changed
 - Time Boxing: panel filter lama dihapus, diganti menu header per kolom.
 - Time Boxing: sorting berjalan server-side dan default urut berdasarkan ID (asc).
 - Inertia props: auth roles dibagikan ke frontend untuk kebutuhan gating UI.
+- Projects: hapus Search (server) + tombol Apply/Reset; label “End” → “End Date”.
+- Audit Logs: sembunyikan Meta + blok Before/After mentah; hanya tampilkan “Changed Fields”; sembunyikan field attachment/file/photo/avatar.
+- Semua form & redirect CRUD kini memakai route pendek (**/partners**, **/projects**, **/time-boxing**, **/audit-logs**).
 
 ---
 
