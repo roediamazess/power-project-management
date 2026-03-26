@@ -139,6 +139,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+
+Route::get('/backups-test', [App\Http\Controllers\BackupsController::class, 'index']);
+
 require __DIR__.'/auth.php';
 
 Route::middleware(['auth'])->group(function () {
