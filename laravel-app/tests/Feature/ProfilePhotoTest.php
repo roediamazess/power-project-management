@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ProfilePhotoTest extends TestCase
@@ -17,6 +18,8 @@ class ProfilePhotoTest extends TestCase
         Storage::fake('public');
 
         $user = User::factory()->create();
+        $admin = Role::query()->firstOrCreate(['name' => 'Administrator', 'guard_name' => 'web']);
+        $user->syncRoles([$admin]);
         $this->actingAs($user);
 
         $file = UploadedFile::fake()->create('avatar.jpg', 200, 'image/jpeg');
@@ -39,6 +42,8 @@ class ProfilePhotoTest extends TestCase
         $user = User::factory()->create([
             'profile_photo_path' => 'profile-photos/existing.jpg',
         ]);
+        $admin = Role::query()->firstOrCreate(['name' => 'Administrator', 'guard_name' => 'web']);
+        $user->syncRoles([$admin]);
 
         Storage::disk('public')->put($user->profile_photo_path, 'x');
 

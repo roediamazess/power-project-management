@@ -132,15 +132,13 @@ Route::middleware('auth')->group(function () {
     })->name('template.show');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile', [ProfileController::class, 'update'])->middleware(['role:Administrator'])->name('profile.update');
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
     Route::delete('/profile/photo', [ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
     Route::get('/profile/photo/{user}', [ProfileController::class, 'photo'])->name('profile.photo');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::delete('/profile', fn () => abort(404))->name('profile.destroy');
 });
 
-
-Route::get('/backups-test', [App\Http\Controllers\BackupsController::class, 'index']);
 
 require __DIR__.'/auth.php';
 
