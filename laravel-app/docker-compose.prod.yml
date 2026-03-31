@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     volumes:
       - public_build:/var/www/html/public/build:ro
+      - ./public/office-agent/sprites:/var/www/html/public/office-agent/sprites:ro
+      - /home/ubuntu/pixel-agents/dist/webview:/var/www/html/public/office-agent-ui:ro
 
   app:
     build:
@@ -29,10 +31,49 @@ services:
       - DB_USERNAME=${DB_USERNAME:-app}
       - DB_PASSWORD=${DB_PASSWORD:-app_password}
       - RUN_MIGRATIONS=${RUN_MIGRATIONS:-1}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - OFFICE_AGENT_TELEGRAM_ENABLED=${OFFICE_AGENT_TELEGRAM_ENABLED:-1}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+      - TELEGRAM_ACTOR_USER_ID=${TELEGRAM_ACTOR_USER_ID:-1}
+      - OFFICE_AGENT_TELEGRAM_USER_ID=${OFFICE_AGENT_TELEGRAM_USER_ID:-1}
     volumes:
       - storage_data:/var/www/html/storage
       - public_build:/var/www/html/public/build
-      - ${BACKUP_DIR_HOST:-/opt/power-project-management/.backups/powerpro}:/var/www/html/.backups/powerpro:ro
+      - ./public/office-agent/sprites:/var/www/html/public/office-agent/sprites
+      - /home/ubuntu/pixel-agents/dist/webview:/var/www/html/public/office-agent-ui:ro
+      - ${BACKUP_DIR_HOST:-/opt/power-project-management/.backups/powerpro}:/var/www/html/.backups/powerpro
+      - /home/ubuntu/.config/rclone/rclone.conf:/etc/rclone/rclone.conf:ro
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  office_agent_watch:
+    image: laravel-app-app
+    command: ["php", "artisan", "office-agent:watch", "--interval=900"]
+    environment:
+      - APP_NAME=${APP_NAME:-Power Project Management}
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY:-}
+      - APP_DEBUG=false
+      - APP_URL=${APP_URL:-http://localhost:8080}
+      - LOG_CHANNEL=stderr
+      - DB_CONNECTION=pgsql
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-app}
+      - DB_USERNAME=${DB_USERNAME:-app}
+      - DB_PASSWORD=${DB_PASSWORD:-app_password}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - OFFICE_AGENT_TELEGRAM_ENABLED=${OFFICE_AGENT_TELEGRAM_ENABLED:-1}
+      - OFFICE_AGENT_TELEGRAM_MIN_INTERVAL_SECONDS=${OFFICE_AGENT_TELEGRAM_MIN_INTERVAL_SECONDS:-900}
+      - OFFICE_AGENT_TELEGRAM_ONLY_ON_CHANGE=${OFFICE_AGENT_TELEGRAM_ONLY_ON_CHANGE:-1}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+      - TELEGRAM_ACTOR_USER_ID=${TELEGRAM_ACTOR_USER_ID:-1}
+      - OFFICE_AGENT_TELEGRAM_USER_ID=${OFFICE_AGENT_TELEGRAM_USER_ID:-1}
+    volumes:
+      - storage_data:/var/www/html/storage
     depends_on:
       - db
     restart: unless-stopped

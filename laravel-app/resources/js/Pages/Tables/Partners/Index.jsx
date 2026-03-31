@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { filterByQuery } from '@/utils/smartSearch';
-import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
+import { formatDateDdMmmYy, getDateAgingColor, parseDateDdMmmYyToIso } from '@/utils/date';
 import DatePickerInput from '@/Components/DatePickerInput';
 
 const STATUS_BADGE = {
@@ -343,6 +343,15 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
     return (
         <>
             <Head title="Partners" />
+            <style>{`
+                .aging-green { color: #28a745 !important; }
+                .aging-yellow { color: #ffc107 !important; }
+                .aging-red { color: #dc3545 !important; }
+                .aging-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+                .bg-aging-green { background-color: #28a745 !important; box-shadow: 0 0 5px #28a745; }
+                .bg-aging-yellow { background-color: #ffc107 !important; background-color: #ffc107 !important; box-shadow: 0 0 5px #ffc107; }
+                .bg-aging-red { background-color: #dc3545 !important; box-shadow: 0 0 5px #dc3545; }
+            `}</style>
 
             <div className="row">
                 <div className="col-xl-12">
@@ -455,9 +464,19 @@ export default function PartnersIndex({ partners, filters, starOptions, statusOp
                                                 <td>{p.sub_area ?? '-'}</td>
                                                 <td>{p.gm_email ?? '-'}</td>
                                                 <td>{p.it_email ?? '-'}</td>
-                                                <td>{formatDateDdMmmYy(p.last_visit)}</td>
+                                                <td className={`white-space-nowrap fw-bold ${getDateAgingColor(p.last_visit) ?? ''}`}>
+                                                    {getDateAgingColor(p.last_visit) && (
+                                                        <span className={`aging-dot bg-${getDateAgingColor(p.last_visit)}`}></span>
+                                                    )}
+                                                    {formatDateDdMmmYy(p.last_visit)}
+                                                </td>
                                                 <td>{p.last_visit_type ?? '-'}</td>
-                                                <td>{p.last_project ?? '-'}</td>
+                                                <td className={`white-space-nowrap fw-bold ${getDateAgingColor(p.last_project) ?? ''}`}>
+                                                    {getDateAgingColor(p.last_project) && (
+                                                        <span className={`aging-dot bg-${getDateAgingColor(p.last_project)}`}></span>
+                                                    )}
+                                                    {formatDateDdMmmYy(p.last_project)}
+                                                </td>
                                                 <td>{p.last_project_type ?? '-'}</td>
                                                 <td className="text-end">
                                                     <div className="d-flex gap-2 justify-content-end">

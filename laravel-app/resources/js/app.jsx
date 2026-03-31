@@ -14,6 +14,23 @@ const hidePreloader = () => {
     if (el) el.style.display = 'none';
 };
 
+const collapseSidebarOnMobile = () => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    if ((window.innerWidth ?? 9999) > 1199) return;
+
+    const menu = document.getElementById('menu') || document.querySelector('.dlabnav .metismenu');
+    if (!menu) return;
+
+    menu.querySelectorAll('ul').forEach((ul) => {
+        ul.classList.remove('mm-show', 'mm-collapsing');
+        ul.classList.add('mm-collapse');
+        ul.style.height = '';
+        ul.style.display = 'none';
+    });
+    menu.querySelectorAll('li.mm-active').forEach((li) => li.classList.remove('mm-active'));
+    menu.querySelectorAll('a.has-arrow').forEach((a) => a.setAttribute('aria-expanded', 'false'));
+};
+
 if (typeof window !== 'undefined' && window.Ziggy && window.location?.origin) {
     window.Ziggy.url = window.location.origin;
 }
@@ -52,7 +69,12 @@ class ErrorBoundary extends React.Component {
 
 if (typeof window !== 'undefined') {
     try {
-        router.on('finish', hidePreloader);
+        router.on('finish', () => {
+            hidePreloader();
+            collapseSidebarOnMobile();
+            setTimeout(collapseSidebarOnMobile, 0);
+            setTimeout(collapseSidebarOnMobile, 200);
+        });
     } catch (_e) {
     }
 }

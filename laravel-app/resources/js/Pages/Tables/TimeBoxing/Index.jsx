@@ -29,11 +29,11 @@ const statusRowCssClass = {
     Completed: 'row-completed',
 };
 const statusRowInlineStyle = {
-    'Brain Dump': { backgroundColor: '#d9d9d9' },
-    'Priority List': { backgroundColor: '#ffe082' },
-    'Ready Plan': { backgroundColor: '#ffe082' },
-    'Time Boxing': { backgroundColor: '#bbdefb' },
-    Completed: { backgroundColor: '#c8e6c9' },
+    'Brain Dump': { backgroundColor: 'var(--tb-brain-dump-bg, #d9d9d9)' },
+    'Priority List': { backgroundColor: 'var(--tb-priority-list-bg, #ffe082)' },
+    'Ready Plan': { backgroundColor: 'var(--tb-priority-list-bg, #ffe082)' },
+    'Time Boxing': { backgroundColor: 'var(--tb-time-boxing-bg, #bbdefb)' },
+    Completed: { backgroundColor: 'var(--tb-completed-bg, #c8e6c9)' },
 };
 
 const priorityBadgeClass = {
@@ -491,6 +491,11 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
         router.get(route('time-boxing.index', params, false), {}, { preserveScroll: true, preserveState: true, replace: true });
     };
 
+    const gotoStatus = (nextStatus) => {
+        const params = buildParams({ status: nextStatus });
+        router.get(route('time-boxing.index', params, false), {}, { preserveScroll: true, preserveState: false, replace: true });
+    };
+
     const ensureOptions = async (statusKey) => {
         const k = statusKey || 'active';
         if (optionsCache[k]) return optionsCache[k];
@@ -646,9 +651,11 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
                                                     key={s.key}
                                                     href={href}
                                                     className={`btn btn-sm ${active ? 'btn-primary' : 'btn-outline-secondary'}`}
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
                                                         setStatusSegment(s.key);
                                                         void ensureOptions(s.key);
+                                                        gotoStatus(s.key);
                                                     }}
                                                 >
                                                     {s.label}
@@ -676,15 +683,31 @@ export default function TimeBoxingIndex({ items, filters, typeOptions, priorityO
                             </div>
 
                             <style>{`
-                                .table.timeboxing-status tbody tr.row-brain-dump td { background-color: #d9d9d9 !important; }
-                                .table.timeboxing-status tbody tr.row-priority-list td { background-color: #ffe082 !important; }
-                                .table.timeboxing-status tbody tr.row-time-boxing td { background-color: #bbdefb !important; }
-                                .table.timeboxing-status tbody tr.row-completed td { background-color: #c8e6c9 !important; }
+                                :root {
+                                    --tb-brain-dump-bg: #d9d9d9;
+                                    --tb-priority-list-bg: #ffe082;
+                                    --tb-time-boxing-bg: #bbdefb;
+                                    --tb-completed-bg: #c8e6c9;
+                                    --tb-text-color: inherit;
+                                    --tb-muted-color: rgba(0,0,0,0.6);
+                                }
+                                [data-theme-version="dark"] {
+                                    --tb-brain-dump-bg: #2c2c2c;
+                                    --tb-priority-list-bg: #4c3e1e;
+                                    --tb-time-boxing-bg: #1e3a5f;
+                                    --tb-completed-bg: #1e3f20;
+                                    --tb-text-color: #ffffff;
+                                    --tb-muted-color: rgba(255,255,255,0.7);
+                                }
+                                .table.timeboxing-status tbody tr td { color: var(--tb-text-color) !important; }
+                                .table.timeboxing-status tbody tr td .text-muted { color: var(--tb-muted-color) !important; }
+                                .table.timeboxing-status tbody tr.row-brain-dump td { background-color: var(--tb-brain-dump-bg) !important; }
+                                .table.timeboxing-status tbody tr.row-priority-list td { background-color: var(--tb-priority-list-bg) !important; }
+                                .table.timeboxing-status tbody tr.row-time-boxing td { background-color: var(--tb-time-boxing-bg) !important; }
+                                .table.timeboxing-status tbody tr.row-completed td { background-color: var(--tb-completed-bg) !important; }
                                 .table.timeboxing-status .status-badge-priority { color: #fff !important; }
                                 .table.timeboxing-status span.badge.bg-warning.status-badge-priority { color: #fff !important; }
-                                .table.timeboxing-status tbody tr.row-priority-list td { color: #fff !important; }
-                                .table.timeboxing-status tbody tr.row-priority-list td .text-muted { color: rgba(255, 255, 255, 0.85) !important; }
-                                .table.timeboxing-status tbody tr.row-priority-list td a { color: #fff !important; }
+                                .table.timeboxing-status tbody tr td a { color: var(--tb-text-color) !important; }
                             `}</style>
                             <div className="table-responsive">
                                 <table className="table table-responsive-md timeboxing-status">

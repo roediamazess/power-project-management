@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use App\Services\OfficeAgentReportingService;
 use App\Services\PartnersXlsxImportService;
 use App\Services\TimeBoxingXlsxImportService;
 
@@ -39,3 +40,50 @@ Artisan::command('time-boxing:import {path} {--no-create-types}', function (stri
         $this->line('skipped_rows=' . json_encode($res['skipped_rows'] ?? [], JSON_UNESCAPED_UNICODE));
     }
 })->purpose('Import data Time Boxing dari file XLSX');
+
+Artisan::command('office-agent:report {--minutes=15} {--dry-run}', function () {
+    $minutes = (int) ($this->option('minutes') ?? 15);
+    if ($minutes < 1) $minutes = 1;
+    if ($minutes > 1440) $minutes = 1440;
+
+    $to = now();
+    $from = $to->copy()->subMinutes($minutes);
+
+    $report = app(OfficeAgentReportingService::class)->createAndMaybeSend($from, $to, [
+        'trigger' => 'console',
+        'minutes' => $minutes,
+    ]);
+
+    $this->info('Report created: ' . (string) $report->id);
+    $this->line('telegram_ok=' . json_encode($report->telegram_ok));
+    if ($report->telegram_error) {
+        $this->line('telegram_error=' . $report->telegram_error);
+    }
+
+    if ($this->option('dry-run')) {
+        $this->line('---');
+        $this->line((string) $report->security_summary);
+        $this->line('---');
+        $this->line((string) $report->activity_summary);
+    }
+})->purpose('Kirim ringkasan Office Agent ke Telegram');
+
+Artisan::command('office-agent:watch {--interval=60}', function () {
+    $interval = (int) ($this->option('interval') ?? 900);
+    if ($interval < 15) $interval = 15;
+    if ($interval > 3600) $interval = 3600;
+
+    $this->info('Office Agent watch started. interval=' . $interval . 's');
+    while (true) {
+        try {
+            Artisan::call('office-agent:report', [
+                '--minutes' => (int) max(1, (int) floor($interval / 60)),
+            ]);
+            $this->line(trim((string) Artisan::output()));
+        } catch (\Throwable $e) {
+            $this->error('Error: ' . $e->getMessage());
+        }
+
+        sleep($interval);
+    }
+})->purpose('Loop reporter Office Agent (untuk container worker)');

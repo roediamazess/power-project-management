@@ -13,7 +13,15 @@ export function formatDateDdMmmYy(value) {
         const day = Number(m[3]);
         date = new Date(Date.UTC(year, month - 1, day));
     } else {
-        date = new Date(text);
+        const dm = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (dm) {
+            const day = Number(dm[1]);
+            const month = Number(dm[2]);
+            const year = Number(dm[3]);
+            date = new Date(Date.UTC(year, month - 1, day));
+        } else {
+            date = new Date(text);
+        }
     }
 
     if (Number.isNaN(date.getTime())) return text;
@@ -96,3 +104,35 @@ export function formatDateTimeDdMmmYyDayHms(value) {
 
     return `${dd} ${mmm} ${yy} - ${day}, ${hh}:${mm}:${ss}`;
 }
+
+export function getDateAgingColor(value) {
+    if (!value) return null;
+
+    let date = new Date(value);
+
+    // If initial parsing fails (e.g., dd Mmm yy or other formats), try manual parsing
+    if (Number.isNaN(date.getTime())) {
+        const iso = parseDateDdMmmYyToIso(value);
+        if (iso) {
+            date = new Date(iso);
+        }
+    }
+
+    if (Number.isNaN(date.getTime())) return null;
+
+    const now = new Date();
+    const diffMs = now - date;
+
+    // Use approximate year in ms (365.25 days)
+    const yearMs = 365.25 * 24 * 60 * 60 * 1000;
+
+    if (diffMs < yearMs) {
+        return 'aging-green'; // Within 12 months
+    }
+    if (diffMs < 2 * yearMs) {
+        return 'aging-yellow'; // Between 1-2 years
+    }
+    return 'aging-red'; // Over 2 years
+}
+
+

@@ -72,6 +72,9 @@ class TimeBoxingsController extends Controller
                 'partner:id,cnc_id,name',
                 'project:id,cnc_id,project_name',
             ]);
+        if (! $request->user()->hasAnyRole(['Administrator', 'Admin Officer'])) {
+            $query->where('time_boxings.user_id', $request->user()->id);
+        }
 
         if ($status !== 'all') {
             if ($status === 'active') {
@@ -197,6 +200,9 @@ class TimeBoxingsController extends Controller
         $status = $data['status'] ?? 'active';
 
         $query = TimeBoxing::query();
+        if (! $request->user()->hasAnyRole(['Administrator', 'Admin Officer'])) {
+            $query->where('time_boxings.user_id', $request->user()->id);
+        }
 
         if ($status !== 'all') {
             if ($status === 'active') {
@@ -276,6 +282,7 @@ class TimeBoxingsController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateTimeBoxing($request);
+        $data['user_id'] = $request->user()->id;
 
         DB::transaction(function () use ($request, $data) {
             $timeBoxing = TimeBoxing::query()->create($this->applyComputedFields($data, null));
@@ -287,7 +294,12 @@ class TimeBoxingsController extends Controller
 
     public function update(Request $request, TimeBoxing $timeBoxing): RedirectResponse
     {
+        if (! $request->user()->hasAnyRole(['Administrator', 'Admin Officer']) && (int) $timeBoxing->user_id !== (int) $request->user()->id) {
+            abort(404);
+        }
+
         $data = $this->validateTimeBoxing($request);
+        $data['user_id'] = $request->user()->id;
 
         DB::transaction(function () use ($request, $timeBoxing, $data) {
             $before = $timeBoxing->fresh()->toArray();
@@ -301,6 +313,10 @@ class TimeBoxingsController extends Controller
 
     public function destroy(Request $request, TimeBoxing $timeBoxing): RedirectResponse
     {
+        if (! $request->user()->hasAnyRole(['Administrator', 'Admin Officer']) && (int) $timeBoxing->user_id !== (int) $request->user()->id) {
+            abort(404);
+        }
+
         DB::transaction(function () use ($request, $timeBoxing) {
             $before = $timeBoxing->fresh()->toArray();
             $id = (string) $timeBoxing->id;

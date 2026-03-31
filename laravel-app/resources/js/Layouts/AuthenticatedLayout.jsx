@@ -16,6 +16,81 @@ export default function AuthenticatedLayout({ header, children }) {
 
     const [pageSearchQuery, setPageSearchQuery] = useState('');
 
+    const getClosedMenuState = () => ({
+        dashboard: false,
+        cms: false,
+        apps: false,
+        appsEmail: false,
+        appsShop: false,
+        charts: false,
+        bootstrap: false,
+        plugins: false,
+        forms: false,
+        tables: false,
+        pages: false,
+        pagesError: false,
+    });
+
+    const [openMenu, setOpenMenu] = useState(getClosedMenuState);
+
+    useEffect(() => {
+        setOpenMenu(getClosedMenuState());
+    }, [url]);
+
+    const closeAllMenus = () => {
+        setOpenMenu(getClosedMenuState());
+
+        if (typeof window === 'undefined') return;
+        window.requestAnimationFrame(() => {
+            const menu = document.getElementById('react-menu');
+            if (!menu) return;
+
+            menu.querySelectorAll('a.has-arrow').forEach((a) => a.setAttribute('aria-expanded', 'false'));
+            menu.querySelectorAll('a.has-arrow + ul').forEach((ul) => {
+                if (!(ul instanceof HTMLElement)) return;
+                ul.style.display = 'none';
+                ul.classList.remove('mm-show', 'mm-collapsing');
+                if (!ul.classList.contains('mm-collapse')) ul.classList.add('mm-collapse');
+            });
+        });
+    };
+
+    const toggleTopMenu = (key) => {
+        setOpenMenu((prev) => {
+            const willOpen = !prev[key];
+            const next = getClosedMenuState();
+            if (willOpen) next[key] = true;
+            return next;
+        });
+    };
+
+    const toggleNestedMenu = (parentKey, key) => {
+        setOpenMenu((prev) => {
+            if (!prev[parentKey]) return prev;
+            return { ...prev, [key]: !prev[key] };
+        });
+    };
+
+    const currentPath = useMemo(() => {
+        try {
+            const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+            return new URL(String(url || ''), base).pathname || '/';
+        } catch (_e) {
+            const raw = String(url || '').split('?')[0].split('#')[0];
+            return raw.startsWith('/') ? raw : `/${raw}`;
+        }
+    }, [url]);
+
+    const isActiveHref = (href) => {
+        try {
+            const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+            const p = new URL(String(href || ''), base).pathname || '/';
+            return p === currentPath;
+        } catch (_e) {
+            return false;
+        }
+    };
+
     const getCookieSafe = (name) => {
         if (typeof window !== 'undefined' && typeof window.getCookie === 'function') return window.getCookie(name);
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -80,16 +155,27 @@ export default function AuthenticatedLayout({ header, children }) {
 
     const applySettingsOptions = (next) => {
         if (typeof window === 'undefined') return;
-        if (typeof window.dlabSettings !== 'function') return;
         if (!window.dlabSettingsOptions) window.dlabSettingsOptions = {};
 
         window.dlabSettingsOptions = { ...window.dlabSettingsOptions, ...next };
+
+        // Always save cookies regardless of dlabSettings availability
         for (const k of optionKeys) {
             if (k in next) setCookieSafe(k, window.dlabSettingsOptions[k]);
         }
 
+        // Directly apply data-theme-version to body - this is the source of truth
+        if (next.version && typeof document !== 'undefined') {
+            document.body.setAttribute('data-theme-version', next.version);
+            // Dispatch custom event so child pages (e.g., Partners) can react
+            window.dispatchEvent(new CustomEvent('themechange', { detail: { version: next.version } }));
+        }
+
+        // Call dlabSettings only if available (handles CSS transitions etc.)
         try {
-            new window.dlabSettings(window.dlabSettingsOptions);
+            if (typeof window.dlabSettings === 'function') {
+                new window.dlabSettings(window.dlabSettingsOptions);
+            }
         } catch (_e) {
         }
 
@@ -700,21 +786,35 @@ export default function AuthenticatedLayout({ header, children }) {
                 wrapper.classList.add('show');
             }
         }
-        const initFillow = () => {
-            const Fillow = window?.Fillow;
-            if (!Fillow?.init) return;
+    }, [url]);
 
-            if (!window.__fillow_inited) {
-                Fillow.init();
-                window.__fillow_inited = true;
-            } else {
-                if (Fillow.resize) Fillow.resize();
-                if (Fillow.handleMenuPosition) Fillow.handleMenuPosition();
-            }
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const menu = document.getElementById('react-menu');
+        if (!menu) return;
+
+        const scrub = () => {
+            menu.querySelectorAll('li.mm-active').forEach((li) => li.classList.remove('mm-active'));
+            menu.querySelectorAll('ul.mm-show').forEach((ul) => ul.classList.remove('mm-show'));
+
+            menu.querySelectorAll('a.has-arrow').forEach((a) => a.setAttribute('aria-expanded', 'false'));
+
+            menu.querySelectorAll('a.has-arrow + ul').forEach((ul) => {
+                if (!(ul instanceof HTMLElement)) return;
+                ul.style.display = 'none';
+                ul.classList.remove('mm-show', 'mm-collapsing');
+                if (!ul.classList.contains('mm-collapse')) ul.classList.add('mm-collapse');
+            });
         };
 
-        const t = setTimeout(initFillow, 50);
-        return () => clearTimeout(t);
+        requestAnimationFrame(scrub);
+        const t1 = window.setTimeout(scrub, 50);
+        const t2 = window.setTimeout(scrub, 200);
+
+        return () => {
+            window.clearTimeout(t1);
+            window.clearTimeout(t2);
+        };
     }, [url]);
 
     return (
@@ -859,7 +959,7 @@ export default function AuthenticatedLayout({ header, children }) {
 
                                     <li className="nav-item dropdown notification_dropdown">
                                         <a
-                                            className="nav-link bell dz-theme-mode"
+                                            className={`nav-link bell dz-theme-mode${settingsOptions.version === 'light' ? ' active' : ''}`}
                                             href="#"
                                             onClick={(e) => {
                                                 e.preventDefault();
@@ -1045,209 +1145,395 @@ export default function AuthenticatedLayout({ header, children }) {
 
                 <div className="dlabnav">
                     <div className="dlabnav-scroll">
-                        <ul className="metismenu" id="menu">
+                        <ul className="metismenu" id="react-menu" data-react-managed="true">
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.dashboard ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('dashboard');
+                                    }}
+                                >
                                     <i className="fas fa-home" />
                                     <span className="nav-text">Dashboard</span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('dashboard')}>Dashboard</Link></li>
-                                    <li><Link href={route('projects.index')}>Project</Link></li>
-                                    <li><Link href={route('contacts.index')}>Contacts</Link></li>
-                                    <li><Link href={route('kanban.index')}>Kanban</Link></li>
-                                    <li><Link href={route('calendar.index')}>Calendar</Link></li>
-                                    <li><Link href={route('messages.index')}>Messages</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.dashboard ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.dashboard ? 'true' : 'false'}
+                                    style={{ display: openMenu.dashboard ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('dashboard')} className={isActiveHref(route('dashboard')) ? 'mm-active' : ''} onClick={closeAllMenus}>Dashboard</Link></li>
+                                    <li><Link href={route('office-agent.index')} className={isActiveHref(route('office-agent.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Dashboard Agent</Link></li>
+                                    <li><Link href={route('dashboard.partners')} className={isActiveHref(route('dashboard.partners')) ? 'mm-active' : ''} onClick={closeAllMenus}>Partners</Link></li>
+                                    <li><Link href={route('projects.index')} className={isActiveHref(route('projects.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Project</Link></li>
+                                    <li><Link href={route('contacts.index')} className={isActiveHref(route('contacts.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Contacts</Link></li>
+                                    <li><Link href={route('kanban.index')} className={isActiveHref(route('kanban.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Kanban</Link></li>
+                                    <li><Link href={route('calendar.index')} className={isActiveHref(route('calendar.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Calendar</Link></li>
+                                    <li><Link href={route('messages.index')} className={isActiveHref(route('messages.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Messages</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.cms ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('cms');
+                                    }}
+                                >
                                     <i className="fas fa-chart-line" />
                                     <span className="nav-text">
                                         CMS <span className="badge badge-xs badge-danger ms-2">New</span>
                                     </span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('template.show', { page: 'content' })}>Content</Link></li>
-                                    <li><Link href={route('template.show', { page: 'content-add' })}>Add Content</Link></li>
-                                    <li><Link href={route('template.show', { page: 'menu-1' })}>Menus</Link></li>
-                                    <li><Link href={route('template.show', { page: 'email-template' })}>Email Template</Link></li>
-                                    <li><Link href={route('template.show', { page: 'add-email' })}>Add Email</Link></li>
-                                    <li><Link href={route('template.show', { page: 'blog' })}>Blog</Link></li>
-                                    <li><Link href={route('template.show', { page: 'add-blog' })}>Add Blog</Link></li>
-                                    <li><Link href={route('template.show', { page: 'blog-category' })}>Blog Category</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.cms ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.cms ? 'true' : 'false'}
+                                    style={{ display: openMenu.cms ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('template.show', { page: 'content' })} className={isActiveHref(route('template.show', { page: 'content' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Content</Link></li>
+                                    <li><Link href={route('template.show', { page: 'content-add' })} className={isActiveHref(route('template.show', { page: 'content-add' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Add Content</Link></li>
+                                    <li><Link href={route('template.show', { page: 'menu-1' })} className={isActiveHref(route('template.show', { page: 'menu-1' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Menus</Link></li>
+                                    <li><Link href={route('template.show', { page: 'email-template' })} className={isActiveHref(route('template.show', { page: 'email-template' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Email Template</Link></li>
+                                    <li><Link href={route('template.show', { page: 'add-email' })} className={isActiveHref(route('template.show', { page: 'add-email' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Add Email</Link></li>
+                                    <li><Link href={route('template.show', { page: 'blog' })} className={isActiveHref(route('template.show', { page: 'blog' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Blog</Link></li>
+                                    <li><Link href={route('template.show', { page: 'add-blog' })} className={isActiveHref(route('template.show', { page: 'add-blog' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Add Blog</Link></li>
+                                    <li><Link href={route('template.show', { page: 'blog-category' })} className={isActiveHref(route('template.show', { page: 'blog-category' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Blog Category</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.apps ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('apps');
+                                    }}
+                                >
                                     <i className="fas fa-info-circle" />
                                     <span className="nav-text">Apps</span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('template.show', { page: 'app-profile' })}>Profile</Link></li>
-                                    <li><Link href={route('profile.edit')}>Edit Profile</Link></li>
-                                    <li><Link href={route('template.show', { page: 'post-details' })}>Post Details</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.apps ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.apps ? 'true' : 'false'}
+                                    style={{ display: openMenu.apps ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('template.show', { page: 'app-profile' })} className={isActiveHref(route('template.show', { page: 'app-profile' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Profile</Link></li>
+                                    <li><Link href={route('profile.edit')} className={isActiveHref(route('profile.edit')) ? 'mm-active' : ''} onClick={closeAllMenus}>Edit Profile</Link></li>
+                                    <li><Link href={route('template.show', { page: 'post-details' })} className={isActiveHref(route('template.show', { page: 'post-details' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Post Details</Link></li>
                                     <li>
-                                        <a className="has-arrow" href="#" aria-expanded="false">Email</a>
-                                        <ul aria-expanded="false">
-                                            <li><Link href={route('template.show', { page: 'email-compose' })}>Compose</Link></li>
-                                            <li><Link href={route('template.show', { page: 'email-inbox' })}>Inbox</Link></li>
-                                            <li><Link href={route('template.show', { page: 'email-read' })}>Read</Link></li>
+                                        <a
+                                            className="has-arrow"
+                                            href="#"
+                                            aria-expanded={openMenu.appsEmail ? 'true' : 'false'}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                toggleNestedMenu('apps', 'appsEmail');
+                                            }}
+                                        >
+                                            Email
+                                        </a>
+                                        <ul
+                                            className={`mm-collapse${openMenu.appsEmail ? ' mm-show' : ''}`}
+                                            aria-expanded={openMenu.appsEmail ? 'true' : 'false'}
+                                            style={{ display: openMenu.appsEmail ? 'block' : 'none' }}
+                                        >
+                                            <li><Link href={route('template.show', { page: 'email-compose' })} className={isActiveHref(route('template.show', { page: 'email-compose' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Compose</Link></li>
+                                            <li><Link href={route('template.show', { page: 'email-inbox' })} className={isActiveHref(route('template.show', { page: 'email-inbox' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Inbox</Link></li>
+                                            <li><Link href={route('template.show', { page: 'email-read' })} className={isActiveHref(route('template.show', { page: 'email-read' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Read</Link></li>
                                         </ul>
                                     </li>
-                                    <li><Link href={route('template.show', { page: 'app-calender' })}>Calendar</Link></li>
+                                    <li><Link href={route('template.show', { page: 'app-calender' })} className={isActiveHref(route('template.show', { page: 'app-calender' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Calendar</Link></li>
                                     <li>
-                                        <a className="has-arrow" href="#" aria-expanded="false">Shop</a>
-                                        <ul aria-expanded="false">
-                                            <li><Link href={route('template.show', { page: 'ecom-product-grid' })}>Product Grid</Link></li>
-                                            <li><Link href={route('template.show', { page: 'ecom-product-list' })}>Product List</Link></li>
-                                            <li><Link href={route('template.show', { page: 'ecom-product-detail' })}>Product Details</Link></li>
-                                            <li><Link href={route('template.show', { page: 'ecom-product-order' })}>Order</Link></li>
-                                            <li><Link href={route('template.show', { page: 'ecom-checkout' })}>Checkout</Link></li>
-                                            <li><Link href={route('template.show', { page: 'ecom-invoice' })}>Invoice</Link></li>
-                                            <li><Link href={route('template.show', { page: 'ecom-customers' })}>Customers</Link></li>
+                                        <a
+                                            className="has-arrow"
+                                            href="#"
+                                            aria-expanded={openMenu.appsShop ? 'true' : 'false'}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                toggleNestedMenu('apps', 'appsShop');
+                                            }}
+                                        >
+                                            Shop
+                                        </a>
+                                        <ul
+                                            className={`mm-collapse${openMenu.appsShop ? ' mm-show' : ''}`}
+                                            aria-expanded={openMenu.appsShop ? 'true' : 'false'}
+                                            style={{ display: openMenu.appsShop ? 'block' : 'none' }}
+                                        >
+                                            <li><Link href={route('template.show', { page: 'ecom-product-grid' })} className={isActiveHref(route('template.show', { page: 'ecom-product-grid' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Product Grid</Link></li>
+                                            <li><Link href={route('template.show', { page: 'ecom-product-list' })} className={isActiveHref(route('template.show', { page: 'ecom-product-list' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Product List</Link></li>
+                                            <li><Link href={route('template.show', { page: 'ecom-product-detail' })} className={isActiveHref(route('template.show', { page: 'ecom-product-detail' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Product Details</Link></li>
+                                            <li><Link href={route('template.show', { page: 'ecom-product-order' })} className={isActiveHref(route('template.show', { page: 'ecom-product-order' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Order</Link></li>
+                                            <li><Link href={route('template.show', { page: 'ecom-checkout' })} className={isActiveHref(route('template.show', { page: 'ecom-checkout' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Checkout</Link></li>
+                                            <li><Link href={route('template.show', { page: 'ecom-invoice' })} className={isActiveHref(route('template.show', { page: 'ecom-invoice' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Invoice</Link></li>
+                                            <li><Link href={route('template.show', { page: 'ecom-customers' })} className={isActiveHref(route('template.show', { page: 'ecom-customers' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Customers</Link></li>
                                         </ul>
                                     </li>
                                 </ul>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.charts ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('charts');
+                                    }}
+                                >
                                     <i className="fas fa-chart-line" />
                                     <span className="nav-text">Charts</span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('template.show', { page: 'chart-flot' })}>Flot</Link></li>
-                                    <li><Link href={route('template.show', { page: 'chart-morris' })}>Morris</Link></li>
-                                    <li><Link href={route('template.show', { page: 'chart-chartjs' })}>Chartjs</Link></li>
-                                    <li><Link href={route('template.show', { page: 'chart-chartist' })}>Chartist</Link></li>
-                                    <li><Link href={route('template.show', { page: 'chart-sparkline' })}>Sparkline</Link></li>
-                                    <li><Link href={route('template.show', { page: 'chart-peity' })}>Peity</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.charts ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.charts ? 'true' : 'false'}
+                                    style={{ display: openMenu.charts ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('template.show', { page: 'chart-flot' })} className={isActiveHref(route('template.show', { page: 'chart-flot' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Flot</Link></li>
+                                    <li><Link href={route('template.show', { page: 'chart-morris' })} className={isActiveHref(route('template.show', { page: 'chart-morris' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Morris</Link></li>
+                                    <li><Link href={route('template.show', { page: 'chart-chartjs' })} className={isActiveHref(route('template.show', { page: 'chart-chartjs' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Chartjs</Link></li>
+                                    <li><Link href={route('template.show', { page: 'chart-chartist' })} className={isActiveHref(route('template.show', { page: 'chart-chartist' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Chartist</Link></li>
+                                    <li><Link href={route('template.show', { page: 'chart-sparkline' })} className={isActiveHref(route('template.show', { page: 'chart-sparkline' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Sparkline</Link></li>
+                                    <li><Link href={route('template.show', { page: 'chart-peity' })} className={isActiveHref(route('template.show', { page: 'chart-peity' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Peity</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.bootstrap ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('bootstrap');
+                                    }}
+                                >
                                     <i className="fab fa-bootstrap" />
                                     <span className="nav-text">Bootstrap</span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('template.show', { page: 'ui-accordion' })}>Accordion</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-alert' })}>Alert</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-badge' })}>Badge</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-button' })}>Button</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-modal' })}>Modal</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-button-group' })}>Button Group</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-list-group' })}>List Group</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-card' })}>Cards</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-carousel' })}>Carousel</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-dropdown' })}>Dropdown</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-popover' })}>Popover</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-progressbar' })}>Progressbar</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-tab' })}>Tab</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-typography' })}>Typography</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-pagination' })}>Pagination</Link></li>
-                                    <li><Link href={route('template.show', { page: 'ui-grid' })}>Grid</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.bootstrap ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.bootstrap ? 'true' : 'false'}
+                                    style={{ display: openMenu.bootstrap ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('template.show', { page: 'ui-accordion' })} className={isActiveHref(route('template.show', { page: 'ui-accordion' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Accordion</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-alert' })} className={isActiveHref(route('template.show', { page: 'ui-alert' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Alert</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-badge' })} className={isActiveHref(route('template.show', { page: 'ui-badge' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Badge</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-button' })} className={isActiveHref(route('template.show', { page: 'ui-button' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Button</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-modal' })} className={isActiveHref(route('template.show', { page: 'ui-modal' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Modal</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-button-group' })} className={isActiveHref(route('template.show', { page: 'ui-button-group' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Button Group</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-list-group' })} className={isActiveHref(route('template.show', { page: 'ui-list-group' })) ? 'mm-active' : ''} onClick={closeAllMenus}>List Group</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-card' })} className={isActiveHref(route('template.show', { page: 'ui-card' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Cards</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-carousel' })} className={isActiveHref(route('template.show', { page: 'ui-carousel' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Carousel</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-dropdown' })} className={isActiveHref(route('template.show', { page: 'ui-dropdown' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Dropdown</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-popover' })} className={isActiveHref(route('template.show', { page: 'ui-popover' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Popover</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-progressbar' })} className={isActiveHref(route('template.show', { page: 'ui-progressbar' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Progressbar</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-tab' })} className={isActiveHref(route('template.show', { page: 'ui-tab' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Tab</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-typography' })} className={isActiveHref(route('template.show', { page: 'ui-typography' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Typography</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-pagination' })} className={isActiveHref(route('template.show', { page: 'ui-pagination' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Pagination</Link></li>
+                                    <li><Link href={route('template.show', { page: 'ui-grid' })} className={isActiveHref(route('template.show', { page: 'ui-grid' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Grid</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.plugins ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('plugins');
+                                    }}
+                                >
                                     <i className="fas fa-heart" />
                                     <span className="nav-text">Plugins</span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('template.show', { page: 'uc-select2' })}>Select 2</Link></li>
-                                    <li><Link href={route('template.show', { page: 'uc-nestable' })}>Nestedable</Link></li>
-                                    <li><Link href={route('template.show', { page: 'uc-noui-slider' })}>Noui Slider</Link></li>
-                                    <li><Link href={route('template.show', { page: 'uc-sweetalert' })}>Sweet Alert</Link></li>
-                                    <li><Link href={route('template.show', { page: 'uc-toastr' })}>Toastr</Link></li>
-                                    <li><Link href={route('template.show', { page: 'map-jqvmap' })}>Jqv Map</Link></li>
-                                    <li><Link href={route('template.show', { page: 'uc-lightgallery' })}>Light Gallery</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.plugins ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.plugins ? 'true' : 'false'}
+                                    style={{ display: openMenu.plugins ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('template.show', { page: 'uc-select2' })} className={isActiveHref(route('template.show', { page: 'uc-select2' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Select 2</Link></li>
+                                    <li><Link href={route('template.show', { page: 'uc-nestable' })} className={isActiveHref(route('template.show', { page: 'uc-nestable' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Nestedable</Link></li>
+                                    <li><Link href={route('template.show', { page: 'uc-noui-slider' })} className={isActiveHref(route('template.show', { page: 'uc-noui-slider' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Noui Slider</Link></li>
+                                    <li><Link href={route('template.show', { page: 'uc-sweetalert' })} className={isActiveHref(route('template.show', { page: 'uc-sweetalert' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Sweet Alert</Link></li>
+                                    <li><Link href={route('template.show', { page: 'uc-toastr' })} className={isActiveHref(route('template.show', { page: 'uc-toastr' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Toastr</Link></li>
+                                    <li><Link href={route('template.show', { page: 'map-jqvmap' })} className={isActiveHref(route('template.show', { page: 'map-jqvmap' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Jqv Map</Link></li>
+                                    <li><Link href={route('template.show', { page: 'uc-lightgallery' })} className={isActiveHref(route('template.show', { page: 'uc-lightgallery' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Light Gallery</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <Link href={route('template.show', { page: 'widget-basic' })} aria-expanded="false">
+                                <Link
+                                    href={route('template.show', { page: 'widget-basic' })}
+                                    className={isActiveHref(route('template.show', { page: 'widget-basic' })) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
                                     <i className="fas fa-user" />
                                     <span className="nav-text">Widget</span>
                                 </Link>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.forms ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('forms');
+                                    }}
+                                >
                                     <i className="fas fa-file-alt" />
                                     <span className="nav-text">Forms</span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('template.show', { page: 'form-element' })}>Form Elements</Link></li>
-                                    <li><Link href={route('template.show', { page: 'form-wizard' })}>Wizard</Link></li>
-                                    <li><Link href={route('template.show', { page: 'form-ckeditor' })}>CkEditor</Link></li>
-                                    <li><Link href={route('template.show', { page: 'form-pickers' })}>Pickers</Link></li>
-                                    <li><Link href={route('template.show', { page: 'form-validation' })}>Form Validate</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.forms ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.forms ? 'true' : 'false'}
+                                    style={{ display: openMenu.forms ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('template.show', { page: 'form-element' })} className={isActiveHref(route('template.show', { page: 'form-element' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Form Elements</Link></li>
+                                    <li><Link href={route('template.show', { page: 'form-wizard' })} className={isActiveHref(route('template.show', { page: 'form-wizard' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Wizard</Link></li>
+                                    <li><Link href={route('template.show', { page: 'form-ckeditor' })} className={isActiveHref(route('template.show', { page: 'form-ckeditor' })) ? 'mm-active' : ''} onClick={closeAllMenus}>CkEditor</Link></li>
+                                    <li><Link href={route('template.show', { page: 'form-pickers' })} className={isActiveHref(route('template.show', { page: 'form-pickers' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Pickers</Link></li>
+                                    <li><Link href={route('template.show', { page: 'form-validation' })} className={isActiveHref(route('template.show', { page: 'form-validation' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Form Validate</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.tables ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('tables');
+                                    }}
+                                >
                                     <i className="fas fa-table" />
                                     <span className="nav-text">Tables</span>
                                 </a>
-                                <ul aria-expanded="false">
+                                <ul
+                                    className={`mm-collapse${openMenu.tables ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.tables ? 'true' : 'false'}
+                                    style={{ display: openMenu.tables ? 'block' : 'none' }}
+                                >
                                     
-                                    <li><Link href={route('tables.user-management.index', {}, false)}>User Management</Link></li>
-                                    <li><Link href={route('tables.partner-setup.index', { category: 'implementation_type' }, false)}>Partner Setup</Link></li>
-                                    <li><Link href={route('tables.project-setup.index', { category: 'type' }, false)}>Project Setup</Link></li>
-                                    <li><Link href={route('tables.time-boxing-setup.index', { category: 'type' }, false)}>Time Boxing Setup</Link></li>
+                                    <li><Link href={route('tables.user-management.index', {}, false)} className={isActiveHref(route('tables.user-management.index', {}, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>User Management</Link></li>
+                                    <li><Link href={route('tables.partner-setup.index', { category: 'implementation_type' }, false)} className={isActiveHref(route('tables.partner-setup.index', { category: 'implementation_type' }, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Partner Setup</Link></li>
+                                    <li><Link href={route('tables.project-setup.index', { category: 'type' }, false)} className={isActiveHref(route('tables.project-setup.index', { category: 'type' }, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Project Setup</Link></li>
+                                    <li><Link href={route('tables.time-boxing-setup.index', { category: 'type' }, false)} className={isActiveHref(route('tables.time-boxing-setup.index', { category: 'type' }, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Time Boxing Setup</Link></li>
 
-                                    <li><Link href={route('template.show', { page: 'table-bootstrap-basic' })}>Bootstrap</Link></li>
-                                    <li><Link href={route('template.show', { page: 'table-datatable-basic' })}>Datatable</Link></li>
+                                    <li><Link href={route('template.show', { page: 'table-bootstrap-basic' })} className={isActiveHref(route('template.show', { page: 'table-bootstrap-basic' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Bootstrap</Link></li>
+                                    <li><Link href={route('template.show', { page: 'table-datatable-basic' })} className={isActiveHref(route('template.show', { page: 'table-datatable-basic' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Datatable</Link></li>
                                 </ul>
                             </li>
                             <li>
-                                <Link href={route('partners.index', {}, false)} aria-expanded="false">
+                                <Link
+                                    href={route('arrangements.index', {}, false)}
+                                    className={isActiveHref(route('arrangements.index', {}, false)) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
+                                    <i className="fas fa-calendar-alt" />
+                                    <span className="nav-text">Arrangement</span>
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href={route('partners.index', {}, false)}
+                                    className={isActiveHref(route('partners.index', {}, false)) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
                                     <i className="fas fa-handshake" />
                                     <span className="nav-text">Partners</span>
                                 </Link>
                             </li>
                             <li>
-                                <Link href={route('projects.index', {}, false)} aria-expanded="false">
+                                <Link
+                                    href={route('projects.index', {}, false)}
+                                    className={isActiveHref(route('projects.index', {}, false)) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
                                     <i className="fas fa-clipboard-list" />
                                     <span className="nav-text">Projects</span>
                                 </Link>
                             </li>
                             <li>
-                                <Link href={route('time-boxing.index', {}, false)} aria-expanded="false">
+                                <Link
+                                    href={route('time-boxing.index', {}, false)}
+                                    className={isActiveHref(route('time-boxing.index', {}, false)) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
                                     <i className="fas fa-stopwatch" />
                                     <span className="nav-text">Time Boxing</span>
                                 </Link>
                             </li>
                             <li>
-                                <Link href={route('audit-logs.index', {}, false)} aria-expanded="false">
+                                <Link
+                                    href={route('audit-logs.index', {}, false)}
+                                    className={isActiveHref(route('audit-logs.index', {}, false)) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
                                     <i className="fas fa-clipboard-check" />
                                     <span className="nav-text">Audit Logs</span>
                                 </Link>
                             </li>
                             <li>
-                                <Link href={route('backups.index')} aria-expanded="false">
+                                <Link
+                                    href={route('backups.index')}
+                                    className={isActiveHref(route('backups.index')) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
                                     <i className="fas fa-cloud-upload-alt" />
                                     <span className="nav-text">Backups</span>
                                 </Link>
                             </li>
                             <li>
-                                <a className="has-arrow" href="#" aria-expanded="false">
+                                <a
+                                    className="has-arrow"
+                                    href="#"
+                                    aria-expanded={openMenu.pages ? 'true' : 'false'}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleTopMenu('pages');
+                                    }}
+                                >
                                     <i className="fas fa-clone" />
                                     <span className="nav-text">Pages</span>
                                 </a>
-                                <ul aria-expanded="false">
-                                    <li><Link href={route('login')}>Login</Link></li>
-                                    <li><Link href={route('register')}>Register</Link></li>
+                                <ul
+                                    className={`mm-collapse${openMenu.pages ? ' mm-show' : ''}`}
+                                    aria-expanded={openMenu.pages ? 'true' : 'false'}
+                                    style={{ display: openMenu.pages ? 'block' : 'none' }}
+                                >
+                                    <li><Link href={route('login')} className={isActiveHref(route('login')) ? 'mm-active' : ''} onClick={closeAllMenus}>Login</Link></li>
+                                    <li><Link href={route('register')} className={isActiveHref(route('register')) ? 'mm-active' : ''} onClick={closeAllMenus}>Register</Link></li>
                                     <li>
-                                        <a className="has-arrow" href="#" aria-expanded="false">Error</a>
-                                        <ul aria-expanded="false">
-                                            <li><Link href={route('template.show', { page: 'page-error-400' })}>Error 400</Link></li>
-                                            <li><Link href={route('template.show', { page: 'page-error-403' })}>Error 403</Link></li>
-                                            <li><Link href={route('template.show', { page: 'page-error-404' })}>Error 404</Link></li>
-                                            <li><Link href={route('template.show', { page: 'page-error-500' })}>Error 500</Link></li>
-                                            <li><Link href={route('template.show', { page: 'page-error-503' })}>Error 503</Link></li>
+                                        <a
+                                            className="has-arrow"
+                                            href="#"
+                                            aria-expanded={openMenu.pagesError ? 'true' : 'false'}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                toggleNestedMenu('pages', 'pagesError');
+                                            }}
+                                        >
+                                            Error
+                                        </a>
+                                        <ul
+                                            className={`mm-collapse${openMenu.pagesError ? ' mm-show' : ''}`}
+                                            aria-expanded={openMenu.pagesError ? 'true' : 'false'}
+                                            style={{ display: openMenu.pagesError ? 'block' : 'none' }}
+                                        >
+                                            <li><Link href={route('template.show', { page: 'page-error-400' })} className={isActiveHref(route('template.show', { page: 'page-error-400' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Error 400</Link></li>
+                                            <li><Link href={route('template.show', { page: 'page-error-403' })} className={isActiveHref(route('template.show', { page: 'page-error-403' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Error 403</Link></li>
+                                            <li><Link href={route('template.show', { page: 'page-error-404' })} className={isActiveHref(route('template.show', { page: 'page-error-404' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Error 404</Link></li>
+                                            <li><Link href={route('template.show', { page: 'page-error-500' })} className={isActiveHref(route('template.show', { page: 'page-error-500' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Error 500</Link></li>
+                                            <li><Link href={route('template.show', { page: 'page-error-503' })} className={isActiveHref(route('template.show', { page: 'page-error-503' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Error 503</Link></li>
                                         </ul>
                                     </li>
-                                    <li><Link href={route('template.show', { page: 'page-lock-screen' })}>Lock Screen</Link></li>
-                                    <li><Link href={route('template.show', { page: 'empty-page' })}>Empty Page</Link></li>
+                                    <li><Link href={route('template.show', { page: 'page-lock-screen' })} className={isActiveHref(route('template.show', { page: 'page-lock-screen' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Lock Screen</Link></li>
+                                    <li><Link href={route('template.show', { page: 'empty-page' })} className={isActiveHref(route('template.show', { page: 'empty-page' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Empty Page</Link></li>
                                 </ul>
                             </li>
                         </ul>

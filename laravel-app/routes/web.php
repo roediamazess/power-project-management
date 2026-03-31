@@ -10,6 +10,13 @@ use App\Http\Controllers\Tables\ProjectSetupController;
 use App\Http\Controllers\Tables\AuditLogsController;
 use App\Http\Controllers\Tables\TimeBoxingSetupController;
 use App\Http\Controllers\Tables\TimeBoxingsController;
+use App\Http\Controllers\Arrangement\ArrangementController;
+use App\Http\Controllers\Arrangement\ArrangementSchedulesController;
+use App\Http\Controllers\Arrangement\ArrangementBatchesController;
+use App\Http\Controllers\Arrangement\ArrangementPickupsController;
+use App\Http\Controllers\OfficeAgentController;
+use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Controllers\DashboardPartnersController;
 use App\Support\TemplatePage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Route;
@@ -27,7 +34,25 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+Route::get('/dashboard/partners', [DashboardPartnersController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.partners');
+
+Route::get('/dashboard/partners/drilldown', [DashboardPartnersController::class, 'drilldown'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.partners.drilldown');
+
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle'])->name('telegram.webhook');
+
 Route::middleware('auth')->group(function () {
+    Route::get('/office-agent', [OfficeAgentController::class, 'index'])->name('office-agent.index');
+    Route::post('/office-agent/runs', [OfficeAgentController::class, 'storeRun'])->name('office-agent.runs.store');
+    Route::get('/office-agent/runs/{runId}/stream', [OfficeAgentController::class, 'streamRun'])->name('office-agent.runs.stream');
+    Route::get('/office-agent/activity', [OfficeAgentController::class, 'activity'])->name('office-agent.activity');
+    Route::get('/office-agent/logger/events', [OfficeAgentController::class, 'loggerEvents'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('office-agent.logger.events');
+    Route::get('/office-agent/security/events', [OfficeAgentController::class, 'securityEvents'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('office-agent.security.events');
+    Route::post('/office-agent/sprites/sheet', [OfficeAgentController::class, 'uploadSpriteSheet'])->middleware('role_or_permission:Administrator|audit_logs.view')->name('office-agent.sprites.sheet.upload');
+
     Route::get('/tables/user-management', [UserManagementController::class, 'index'])->middleware('role_or_permission:Administrator|user_management.view')->name('tables.user-management.index');
     Route::post('/tables/user-management', [UserManagementController::class, 'store'])->middleware('role_or_permission:Administrator|user_management.create')->name('tables.user-management.store');
     Route::put('/tables/user-management/{user}', [UserManagementController::class, 'update'])->middleware('role_or_permission:Administrator|user_management.update')->name('tables.user-management.update');
@@ -75,6 +100,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/partners', [PartnersController::class, 'store'])->middleware('role_or_permission:Administrator|partners.create')->name('partners.store');
     Route::put('/partners/{partner}', [PartnersController::class, 'update'])->middleware('role_or_permission:Administrator|partners.update')->name('partners.update');
     Route::delete('/partners/{partner}', [PartnersController::class, 'destroy'])->middleware('role_or_permission:Administrator|partners.delete')->name('partners.destroy');
+
+    Route::get('/arrangements', [ArrangementController::class, 'index'])->name('arrangements.index');
+    Route::post('/arrangements/schedules/{schedule}/pickups', [ArrangementPickupsController::class, 'store'])->name('arrangements.pickups.store');
+    Route::delete('/arrangements/pickups/{pickup}', [ArrangementPickupsController::class, 'destroy'])->name('arrangements.pickups.destroy');
+
+    Route::middleware('role:Administrator|Admin Officer')->group(function () {
+        Route::get('/arrangements/schedules', [ArrangementSchedulesController::class, 'index'])->name('arrangements.schedules.index');
+        Route::post('/arrangements/schedules', [ArrangementSchedulesController::class, 'store'])->name('arrangements.schedules.store');
+        Route::put('/arrangements/schedules/{schedule}', [ArrangementSchedulesController::class, 'update'])->name('arrangements.schedules.update');
+        Route::post('/arrangements/schedules/{schedule}/approve', [ArrangementSchedulesController::class, 'approve'])->name('arrangements.schedules.approve');
+        Route::post('/arrangements/schedules/{schedule}/reopen', [ArrangementSchedulesController::class, 'reopen'])->name('arrangements.schedules.reopen');
+
+        Route::get('/arrangements/batches', [ArrangementBatchesController::class, 'index'])->name('arrangements.batches.index');
+        Route::post('/arrangements/batches', [ArrangementBatchesController::class, 'store'])->name('arrangements.batches.store');
+        Route::put('/arrangements/batches/{batch}', [ArrangementBatchesController::class, 'update'])->name('arrangements.batches.update');
+    });
 
     Route::get('/time-boxing', [TimeBoxingsController::class, 'index'])->middleware('role_or_permission:Administrator|time_boxing.view')->name('time-boxing.index');
     Route::get('/time-boxing/options', [TimeBoxingsController::class, 'options'])->middleware('role_or_permission:Administrator|time_boxing.view')->name('time-boxing.options');
@@ -144,4 +185,6 @@ require __DIR__.'/auth.php';
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/backups', [App\Http\Controllers\BackupsController::class, 'index'])->name('backups.index');
+    Route::post('/backups/run', [App\Http\Controllers\BackupsController::class, 'run'])->middleware('role:Administrator')->name('backups.run');
+    Route::get('/backups/status/{runId}', [App\Http\Controllers\BackupsController::class, 'status'])->middleware('role:Administrator')->name('backups.status');
 });

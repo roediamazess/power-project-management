@@ -1,3 +1,107 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── THEME-AWARE DRILLDOWN MODAL ── */
+.drilldown-modal-panel,
+.drilldown-modal-panel .modal-content {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #212529 !important;
+    border: none !important;
+}
+
+/* Specific Dark Mode Overrides */
+[data-theme-version="dark"] .drilldown-modal-panel,
+[data-theme-version="dark"] .drilldown-modal-panel .modal-content,
+[data-bs-theme="dark"] .drilldown-modal-panel,
+body.dark .drilldown-modal-panel {
+    background-color: #312a2a !important;
+    background: #312a2a !important;
+    color: #ffffff !important;
+}
+
+/* Explicit Light Mode Force */
+[data-theme-version="light"] .drilldown-modal-panel,
+[data-theme-version="light"] .drilldown-modal-panel .modal-content,
+[data-bs-theme="light"] .drilldown-modal-panel,
+body:not(.dark) .drilldown-modal-panel:not([data-theme-version="dark"]) {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+
+.drilldown-modal-panel .btn-close-custom { color: #212529; }
+[data-theme-version="dark"] .drilldown-modal-panel .btn-close-custom,
+[data-bs-theme="dark"] .drilldown-modal-panel .btn-close-custom {
+    color: #ffffff;
+}
+
+.drilldown-modal-panel table { color: inherit !important; }
+.drilldown-modal-panel thead { background: #f8f9fa !important; color: #212529 !important; }
+[data-theme-version="dark"] .drilldown-modal-panel thead,
+[data-bs-theme="dark"] .drilldown-modal-panel thead {
+    background: #312a2a !important;
+    color: #ffffff !important;
+}
+
+[data-theme-version="dark"] .drilldown-modal-panel .table-hover tbody tr:hover,
+[data-bs-theme="dark"] .drilldown-modal-panel .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, #886CC0, #61CFF1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ── GLASS CARD ── */
+.glass-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: all 0.3s ease;
+}
+
+[data-theme-version="dark"] .glass-card,
+[data-bs-theme="dark"] .glass-card {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes pulse-soft {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.5s ease forwards;
+}
+
+/* ── CHART TOOLTIP FIX ── */
+.apexcharts-tooltip {
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+[data-theme-version="dark"] .apexcharts-tooltip,
+[data-bs-theme="dark"] .apexcharts-tooltip {
+    background: #312a2a !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}

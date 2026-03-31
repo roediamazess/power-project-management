@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Partner;
+use App\Models\AuditLog;
 use App\Models\TimeBoxing;
 use App\Models\TimeBoxingSetupOption;
 use App\Support\XlsxReader;
@@ -26,6 +27,7 @@ class TimeBoxingXlsxImportService
 
     public function import(string $path, bool $createMissingTypes = true): array
     {
+        $importUserId = (int) env('TIME_BOXING_IMPORT_USER_ID', 1);
         $rows = app(XlsxReader::class)->readFirstSheet($path);
         if (count($rows) < 2) {
             return [
@@ -87,6 +89,7 @@ class TimeBoxingXlsxImportService
             $createMissingTypes,
             $partnerMap,
             $existingByNo,
+            $importUserId,
             &$typesCreated,
             &$created,
             &$updated,
@@ -173,6 +176,7 @@ class TimeBoxingXlsxImportService
                     'information_date' => $informationDate,
                     'type' => $type,
                     'priority' => $priority,
+                    'user_id' => $importUserId,
                     'user_position' => $this->nullIfEmpty($this->cell($row, $idx, 'user & position')),
                     'partner_id' => $partnerId,
                     'description' => $this->nullIfEmpty($this->cell($row, $idx, 'descriptions')),
@@ -198,6 +202,17 @@ class TimeBoxingXlsxImportService
                 }
             }
         });
+
+        AuditLog::record(null, 'import', TimeBoxing::class, null, null, [
+            'created' => $created,
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'partners_not_found' => $partnersNotFound,
+            'types_created' => $typesCreated,
+        ], [
+            'source' => 'xlsx_import',
+            'path' => $path,
+        ]);
 
         if (DB::getDriverName() === 'pgsql') {
             DB::statement("SELECT setval('time_boxings_no_seq', (SELECT COALESCE(MAX(no), 0) FROM time_boxings), true)");

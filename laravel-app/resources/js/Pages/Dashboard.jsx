@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useEffect, useRef } from 'react';
 
 function Dashboard() {
@@ -143,9 +143,14 @@ function Dashboard() {
                                                     Let Power Project Management manage your project automatically with our best AI
                                                     systems
                                                 </span>
-                                                <a href="#" className="btn btn-rounded">
-                                                    Try Free Now
-                                                </a>
+                                                <div className="d-flex flex-wrap gap-2 mt-3">
+                                                    <Link href={route('office-agent.index')} className="btn btn-rounded">
+                                                        Open Office Agent
+                                                    </Link>
+                                                    <a href="#" className="btn btn-rounded btn-outline-light">
+                                                        Try Free Now
+                                                    </a>
+                                                </div>
                                             </div>
                                             <div className="col-xl-5 col-sm-5">
                                                 <img src="/images/chart.png" alt="" className="sd-shape" />

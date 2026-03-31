@@ -18,6 +18,7 @@ class TimeBoxing extends Model
         'information_date',
         'type',
         'priority',
+        'user_id',
         'user_position',
         'partner_id',
         'description',
@@ -34,6 +35,7 @@ class TimeBoxing extends Model
         'due_date' => 'date',
         'completed_at' => 'datetime',
         'partner_id' => 'integer',
+        'user_id' => 'integer',
     ];
 
     protected static function booted(): void
