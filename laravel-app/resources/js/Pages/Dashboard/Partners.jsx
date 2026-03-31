@@ -367,24 +367,24 @@ export default function DashboardPartners({
         }
 
         return () => destroyAll();
-    }, [statusBreakdown, visitAging, typeBreakdown, areaBreakdown, versionBreakdown, starBreakdown, groupBreakdown, implBreakdown]);
+    }, [currentTheme, statusBreakdown, visitAging, typeBreakdown, areaBreakdown, versionBreakdown, starBreakdown, groupBreakdown, implBreakdown]);
 
     return (
         <>
             <Head title="Partners Insight" />
 
             {/* ── HEADER ── */}
-            <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+            <div className={`d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3 ${currentTheme === 'dark' ? 'text-white' : ''}`}>
                 <div>
                     <h2 className="mb-1 fw-bold text-gradient">Partners Insight</h2>
-                    <p className="text-muted mb-0">Discover strategic partner metrics and operational status</p>
+                    <p className={`mb-0 ${currentTheme === 'dark' ? 'text-muted-dark' : 'text-muted'}`} style={{ color: currentTheme === 'dark' ? '#adb5bd' : '#6c757d' }}>Discover strategic partner metrics and operational status</p>
                 </div>
                 <div className="d-flex align-items-center gap-2">
-                    <button className="btn btn-sm glass-card px-3 py-2 text-white border-0">
+                    <button className="btn btn-sm glass-card px-3 py-2 text-white border-0" style={{ backgroundColor: currentTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.6)' }}>
                         <i className="fas fa-file-export me-2 text-info"></i>
                         Export
                     </button>
-                    <div className="p-2 glass-card d-flex align-items-center gap-2" style={{ border: '1px solid #26E02322' }}>
+                    <div className="p-2 glass-card d-flex align-items-center gap-2" style={{ border: '1px solid #26E02322', backgroundColor: currentTheme === 'dark' ? 'rgba(38, 224, 35, 0.05)' : 'rgba(38, 224, 35, 0.1)' }}>
                          <span className="badge bg-success rounded-circle p-1" style={{ width: 8, height: 8, animation: 'pulse-soft 2s infinite' }}></span>
                          <small className="text-success fw-bold" style={{ fontSize: 11 }}>LIVE SYNC</small>
                     </div>
@@ -558,25 +558,25 @@ export default function DashboardPartners({
             {/* ── ROW 5: Needs Attention + Recently Visited ── */}
             <div className="row g-3 mb-4">
                 <div className="col-xl-6">
-                    <div className="card h-100">
-                        <div className="card-header border-0 pb-0 d-flex align-items-center justify-content-between">
-                            <h5 className="card-title mb-0">
+                    <div className={`card h-100 border-0 ${currentTheme === 'dark' ? 'bg-dark-card' : ''}`} style={{ backgroundColor: themeBg, transition: 'background-color 0.3s' }}>
+                        <div className="card-header border-0 pb-0 d-flex align-items-center justify-content-between" style={{ backgroundColor: 'transparent' }}>
+                            <h5 className="card-title mb-0" style={{ color: themeText }}>
                                 <i className="fas fa-exclamation-triangle me-2 text-danger" />
                                 Needs Attention
-                                <small className="text-muted ms-2 fw-normal" style={{ fontSize: 12 }}>Active · Last Visit &gt; 2 Years / No Visit</small>
+                                <small className="ms-2 fw-normal" style={{ fontSize: 12, color: currentTheme === 'dark' ? '#adb5bd' : '#6c757d' }}>Active · Last Visit &gt; 2 Years / No Visit</small>
                             </h5>
-                            <span className="badge bg-danger">{needsAttention?.length ?? 0}</span>
+                            <span className="badge bg-danger shadow-sm">{needsAttention?.length ?? 0}</span>
                         </div>
                         <div className="card-body p-0">
                             <div className="table-responsive">
-                                <table className="table table-sm table-hover mb-0">
-                                    <thead>
+                                <table className={`table table-sm table-hover mb-0 ${currentTheme === 'dark' ? 'table-dark' : ''}`} style={{ backgroundColor: 'transparent' }}>
+                                    <thead style={{ backgroundColor: tableHeaderBg }}>
                                         <tr>
-                                            <th className="ps-3">CNC ID</th>
-                                            <th>Name</th>
-                                            <th>Area</th>
-                                            <th>Last Visit</th>
-                                            <th>Aging</th>
+                                            <th className="ps-3 border-0">CNC ID</th>
+                                            <th className="border-0">Name</th>
+                                            <th className="border-0">Area</th>
+                                            <th className="border-0">Last Visit</th>
+                                            <th className="border-0">Aging</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -589,23 +589,23 @@ export default function DashboardPartners({
                                             </tr>
                                         ) : (needsAttention ?? []).map((p) => (
                                             <tr key={p.id}>
-                                                <td className="ps-3">
-                                                    <Link href={route('partners.index')} className="fw-semibold">
+                                                <td className="ps-3 border-0">
+                                                    <Link href={route('partners.index')} className="fw-semibold text-danger">
                                                         {p.cnc_id}
                                                     </Link>
                                                 </td>
-                                                <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</td>
-                                                <td>{p.area ?? '-'}</td>
-                                                <td style={{ whiteSpace: 'nowrap' }}>{formatDate(p.last_visit)}</td>
-                                                <td><AgingDot dateStr={p.last_visit} /></td>
+                                                <td className="border-0" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</td>
+                                                <td className="border-0">{p.area ?? '-'}</td>
+                                                <td className="border-0" style={{ whiteSpace: 'nowrap' }}>{formatDate(p.last_visit)}</td>
+                                                <td className="border-0"><AgingDot dateStr={p.last_visit} /></td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                        <div className="card-footer border-0 text-end">
-                            <Link href={route('partners.index')} className="btn btn-sm btn-outline-danger">
+                        <div className="card-footer border-0 text-end" style={{ backgroundColor: 'transparent' }}>
+                            <Link href={route('partners.index')} className="btn btn-sm btn-outline-danger border-0">
                                 View All Partners →
                             </Link>
                         </div>
@@ -613,25 +613,25 @@ export default function DashboardPartners({
                 </div>
 
                 <div className="col-xl-6">
-                    <div className="card h-100">
-                        <div className="card-header border-0 pb-0 d-flex align-items-center justify-content-between">
-                            <h5 className="card-title mb-0">
+                    <div className={`card h-100 border-0 ${currentTheme === 'dark' ? 'bg-dark-card' : ''}`} style={{ backgroundColor: themeBg, transition: 'background-color 0.3s' }}>
+                        <div className="card-header border-0 pb-0 d-flex align-items-center justify-content-between" style={{ backgroundColor: 'transparent' }}>
+                            <h5 className="card-title mb-0" style={{ color: themeText }}>
                                 <i className="fas fa-calendar-check me-2 text-success" />
                                 Recently Visited
-                                <small className="text-muted ms-2 fw-normal" style={{ fontSize: 12 }}>Active · Last 6 Months</small>
+                                <small className="ms-2 fw-normal" style={{ fontSize: 12, color: currentTheme === 'dark' ? '#adb5bd' : '#6c757d' }}>Active · Last 6 Months</small>
                             </h5>
-                            <span className="badge bg-success">{recentlyVisited?.length ?? 0}</span>
+                            <span className="badge bg-success shadow-sm">{recentlyVisited?.length ?? 0}</span>
                         </div>
                         <div className="card-body p-0">
                             <div className="table-responsive">
-                                <table className="table table-sm table-hover mb-0">
-                                    <thead>
+                                <table className={`table table-sm table-hover mb-0 ${currentTheme === 'dark' ? 'table-dark' : ''}`} style={{ backgroundColor: 'transparent' }}>
+                                    <thead style={{ backgroundColor: tableHeaderBg }}>
                                         <tr>
-                                            <th className="ps-3">CNC ID</th>
-                                            <th>Name</th>
-                                            <th>Area</th>
-                                            <th>Last Visit</th>
-                                            <th>Type</th>
+                                            <th className="ps-3 border-0">CNC ID</th>
+                                            <th className="border-0">Name</th>
+                                            <th className="border-0">Area</th>
+                                            <th className="border-0">Last Visit</th>
+                                            <th className="border-0">Type</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -641,15 +641,15 @@ export default function DashboardPartners({
                                             </tr>
                                         ) : (recentlyVisited ?? []).map((p) => (
                                             <tr key={p.id}>
-                                                <td className="ps-3">
+                                                <td className="ps-3 border-0">
                                                     <Link href={route('partners.index')} className="fw-semibold text-success">
                                                         {p.cnc_id}
                                                     </Link>
                                                 </td>
-                                                <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</td>
-                                                <td>{p.area ?? '-'}</td>
-                                                <td style={{ whiteSpace: 'nowrap' }}>{formatDate(p.last_visit)}</td>
-                                                <td>
+                                                <td className="border-0" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</td>
+                                                <td className="border-0">{p.area ?? '-'}</td>
+                                                <td className="border-0" style={{ whiteSpace: 'nowrap' }}>{formatDate(p.last_visit)}</td>
+                                                <td className="border-0">
                                                     {p.last_visit_type
                                                         ? <span className="badge bg-info text-dark" style={{ fontSize: 11 }}>{p.last_visit_type}</span>
                                                         : <span className="text-muted">-</span>
@@ -661,8 +661,8 @@ export default function DashboardPartners({
                                 </table>
                             </div>
                         </div>
-                        <div className="card-footer border-0 text-end">
-                            <Link href={route('partners.index')} className="btn btn-sm btn-outline-success">
+                        <div className="card-footer border-0 text-end" style={{ backgroundColor: 'transparent' }}>
+                            <Link href={route('partners.index')} className="btn btn-sm btn-outline-success border-0">
                                 View All Partners →
                             </Link>
                         </div>

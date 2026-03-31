@@ -217,7 +217,7 @@ export default function AuthenticatedLayout({ header, children }) {
     };
 
 
-    const appVersion = 'v1.2603.6';
+    const appVersion = 'v1.2603.7';
     const releaseNotes = page.props.releaseNotes;
 
     const canSeeReleaseReferences = useMemo(() => {
@@ -311,6 +311,54 @@ export default function AuthenticatedLayout({ header, children }) {
     };
 
     const staticVersionHistory = [
+        {
+            version: 'v1.2603.7',
+            date: '2026-03-31',
+            sections: [
+                {
+                    title: 'Added',
+                    items: [
+                        'Dashboard Partners: fitur drilldown interaktif (double-click segmen chart) untuk melihat detail list partner.',
+                        'Theme: sistem sinkronisasi tema lintas komponen via MutationObserver + custom event `themechange`.',
+                        'Deployment: workflow deployment otomatis untuk environment Docker (rebuild + volume sync).',
+                        'Knowledge Base: dokumentasi arsitektur sistem dan panduan deployment untuk model AI.',
+                    ],
+                    references: [
+                        'Drilldown UI: `resources/js/Pages/Dashboard/Partners.jsx`',
+                        'Drilldown controller: `app/Http/Controllers/DashboardPartnersController.php`',
+                        'Theme logic: `resources/js/Layouts/AuthenticatedLayout.jsx`, `resources/js/Pages/Dashboard/Partners.jsx`',
+                        'Deployment: `.agent/workflows/deploy.md`, `.gemini/antigravity/knowledge/powerpro-deployment/`',
+                    ],
+                },
+                {
+                    title: 'Fixed',
+                    items: [
+                        'Theme: perbaiki bug toggle icon yang tidak berubah (Moon/Sun icon nyangkut di mode dark).',
+                        'Theme: perbaiki background modal drilldown yang tetap gelap saat mode light.',
+                        'Theme: perbaiki bug `applySettingsOptions` yang return early jika plugin jQuery belum load.',
+                        'UI: sinkronisasi warna border dan header tabel modal agar adaptif terhadap tema.',
+                    ],
+                    references: [
+                        'Toggle fix: `resources/js/Layouts/AuthenticatedLayout.jsx`',
+                        'Modal theme fix: `resources/css/app.css`, `resources/js/Pages/Dashboard/Partners.jsx`',
+                        'Layout core: `resources/js/Layouts/AuthenticatedLayout.jsx`',
+                    ],
+                },
+                {
+                    title: 'Changed',
+                    items: [
+                        'Partners Dashboard: refactor komponen untuk memakai inline-style yang dikontrol state React demi reliabilitas tema 100%.',
+                        'Modal: update selektor CSS `.modal-content` untuk mendukung sinkronisasi tema manual.',
+                        'Version History: update ke v1.2603.7 dengan rangkuman perbaikan tema dan fitur dashboard.',
+                    ],
+                    references: [
+                        'Partners refactor: `resources/js/Pages/Dashboard/Partners.jsx`',
+                        'CSS update: `resources/css/app.css`',
+                        'Authenticated layout: `resources/js/Layouts/AuthenticatedLayout.jsx`',
+                    ],
+                },
+            ],
+        },
         {
             version: 'v1.2603.6',
             date: '2026-03-26',
