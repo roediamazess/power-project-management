@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Storage;
+use League\Flysystem\Filesystem;
+use Masbug\Flysystem\GoogleDriveAdapter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +31,33 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        try {
+            Storage::extend('google', function ($app, $config) {
+                $client = new \Google\Client();
+                $client->setClientId($config['clientId'] ?? '');
+                $client->setClientSecret($config['clientSecret'] ?? '');
+                
+                // Set the refresh token if available
+                if (!empty($config['refreshToken'])) {
+                    $token = $client->fetchAccessTokenWithRefreshToken($config['refreshToken']);
+                    if (is_array($token) && isset($token['error'])) {
+                        throw new \RuntimeException('Google Drive auth error: ' . ($token['error'] ?? 'unknown'));
+                    }
+                }
+
+                $service = new \Google\Service\Drive($client);
+                $adapter = new GoogleDriveAdapter($service, $config['folder'] ?? '/', $config);
+
+                return new \Illuminate\Filesystem\FilesystemAdapter(
+                    new \League\Flysystem\Filesystem($adapter, $config),
+                    $adapter,
+                    $config
+                );
+            });
+        } catch (\Exception $e) {
+            // Silently fail if Google Client is not yet fully configured in .env
+        }
 
         Event::listen(Login::class, function (Login $event) {
             $req = app(Request::class);
