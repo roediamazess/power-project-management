@@ -951,6 +951,21 @@ export default function AuthenticatedLayout({ header, children }) {
                                         #user-menu img, #user-menu svg {
                                             display: none !important;
                                         }
+                                        @media only screen and (max-width: 35.9375rem) {
+                                            .header-right .search-area.mobile-search-area {
+                                                max-width: 8.75rem !important;
+                                            }
+                                            #user-menu {
+                                                padding-left: 0.25rem !important;
+                                                padding-right: 0.25rem !important;
+                                            }
+                                            #user-menu .text-truncate {
+                                                display: none !important;
+                                            }
+                                            #user-menu .fa-chevron-down {
+                                                margin-left: 0 !important;
+                                            }
+                                        }
                                     `}</style>
                                     <li className="nav-item d-none d-md-flex align-items-center">
                                         <div className="input-group search-area">
@@ -1070,10 +1085,11 @@ export default function AuthenticatedLayout({ header, children }) {
                                             href="#"
                                             role="button"
                                             data-bs-toggle="dropdown"
+                                            style={{ fontFamily: 'inherit', fontSize: 'var(--dz-side-nav-size)', fontWeight: 500, color: 'var(--text-gray)', lineHeight: 'var(--bs-body-line-height)' }}
                                         >
-                                            <span className="d-inline-flex align-items-center fw-semibold" style={{ minWidth: 0, maxWidth: 220 }}>
-                                                <span className="text-truncate" style={{ maxWidth: 220 }} title={displayName}>{displayName}</span>
-                                                <i className="ms-2 fas fa-chevron-down" />
+                                            <span className="d-inline-flex align-items-center" style={{ minWidth: 0, maxWidth: 220 }}>
+                                                <span className="text-truncate" style={{ maxWidth: 220, fontSize: 'inherit', fontWeight: 'inherit' }} title={displayName}>{displayName}</span>
+                                                <i className="ms-2 fas fa-chevron-down" style={{ fontSize: '0.8em' }} />
                                             </span>
                                         </a>
                                         <div className="dropdown-menu dropdown-menu-end">

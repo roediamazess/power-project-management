@@ -21,6 +21,8 @@ services:
       - APP_KEY=${APP_KEY:-}
       - APP_DEBUG=false
       - APP_URL=${APP_URL:-https://powerpro.cloud}
+      - ASSET_URL=${ASSET_URL:-}
+      - SESSION_SECURE_COOKIE=${SESSION_SECURE_COOKIE:-true}
       - LOG_CHANNEL=stderr
       - DB_CONNECTION=pgsql
       - DB_HOST=db
