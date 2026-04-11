@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\ArrangementBatch;
+use App\Models\ArrangementJobsheetEntry;
+use App\Models\ArrangementJobsheetPeriod;
 use App\Models\ArrangementSchedule;
 use App\Models\ArrangementSchedulePickup;
 use App\Models\User;
@@ -95,7 +97,8 @@ class ArrangementTest extends TestCase
 
         $this->actingAs($admin)
             ->delete("/arrangements/pickups/{$pickup->id}")
-            ->assertStatus(302);
+            ->assertStatus(302)
+            ->assertSessionHasErrors();
     }
 
     public function test_create_schedule_count_creates_duplicate_schedules(): void
@@ -284,5 +287,135 @@ class ArrangementTest extends TestCase
             ->post("/arrangements/schedules/{$s2->id}/pickups")
             ->assertStatus(302)
             ->assertSessionHasErrors();
+    }
+
+    public function test_admin_approve_requires_release_and_cancel_approved_unlocks_pic(): void
+    {
+        $admin = User::factory()->create();
+        $adminRole = Role::query()->firstOrCreate(['name' => 'Administrator', 'guard_name' => 'web']);
+        $admin->syncRoles([$adminRole]);
+
+        $batch = ArrangementBatch::query()->create([
+            'name' => 'Batch Approve Flow',
+            'requirement_points' => 2,
+            'min_requirement_points' => 0,
+            'max_requirement_points' => 2,
+            'status' => 'Approved',
+            'pickup_start_at' => now()->subHour(),
+            'pickup_end_at' => now()->addHour(),
+            'created_by' => $admin->id,
+        ]);
+
+        $schedule = ArrangementSchedule::query()->create([
+            'batch_id' => $batch->id,
+            'schedule_type' => 'Middle',
+            'start_date' => '2026-04-06',
+            'end_date' => '2026-04-08',
+            'count' => 1,
+            'status' => 'Batched',
+            'created_by' => $admin->id,
+        ]);
+
+        $pic = User::factory()->create(['tier' => 'Tier 1']);
+
+        $this->actingAs($pic)
+            ->post("/arrangements/schedules/{$schedule->id}/pickups")
+            ->assertStatus(302);
+
+        $schedule->refresh();
+        $this->assertSame('Picked Up', $schedule->status);
+
+        $this->actingAs($admin)
+            ->post("/arrangements/schedules/{$schedule->id}/approve")
+            ->assertStatus(302)
+            ->assertSessionHasErrors();
+
+        $pickup = ArrangementSchedulePickup::query()
+            ->where('schedule_id', $schedule->id)
+            ->where('user_id', $pic->id)
+            ->firstOrFail();
+
+        $this->actingAs($pic)
+            ->post("/arrangements/pickups/{$pickup->id}/release")
+            ->assertStatus(302);
+
+        $schedule->refresh();
+        $this->assertSame('Released', $schedule->status);
+
+        $this->actingAs($admin)
+            ->post("/arrangements/schedules/{$schedule->id}/approve")
+            ->assertStatus(302);
+
+        $schedule->refresh();
+        $this->assertSame('Approved', $schedule->status);
+
+        $this->actingAs($pic)
+            ->post("/arrangements/pickups/{$pickup->id}/reopen")
+            ->assertStatus(403);
+
+        $this->actingAs($admin)
+            ->post("/arrangements/schedules/{$schedule->id}/reopen")
+            ->assertStatus(302);
+
+        $schedule->refresh();
+        $this->assertSame('Released', $schedule->status);
+
+        $this->actingAs($pic)
+            ->post("/arrangements/pickups/{$pickup->id}/reopen")
+            ->assertStatus(302);
+    }
+
+    public function test_jobsheet_manual_entry_is_restricted_and_persists_to_database(): void
+    {
+        $admin = User::factory()->create();
+        $adminRole = Role::query()->firstOrCreate(['name' => 'Administrator', 'guard_name' => 'web']);
+        $admin->syncRoles([$adminRole]);
+
+        $pic = User::factory()->create();
+
+        $period = ArrangementJobsheetPeriod::query()->create([
+            'name' => 'Periode Test',
+            'start_date' => '2026-04-01',
+            'end_date' => '2026-04-07',
+            'created_by' => $admin->id,
+        ]);
+
+        $payload = [
+            'period_id' => $period->id,
+            'user_id' => $pic->id,
+            'start_date' => '2026-04-03',
+            'end_date' => '2026-04-05',
+            'code' => 'D.OT',
+        ];
+
+        $this->actingAs($pic)
+            ->post('/arrangements/jobsheet/entries', $payload)
+            ->assertStatus(403);
+
+        $this->actingAs($admin)
+            ->post('/arrangements/jobsheet/entries', $payload)
+            ->assertStatus(302);
+
+        $this->assertSame(3, ArrangementJobsheetEntry::query()->where('period_id', $period->id)->count());
+
+        $this->actingAs($pic)
+            ->post('/arrangements/jobsheet/entries/clear', [
+                'period_id' => $period->id,
+                'user_id' => $pic->id,
+                'start_date' => '2026-04-03',
+                'end_date' => '2026-04-05',
+            ])
+            ->assertStatus(403);
+
+        $this->actingAs($admin)
+            ->post('/arrangements/jobsheet/entries/clear', [
+                'period_id' => $period->id,
+                'user_id' => $pic->id,
+                'start_date' => '2026-04-03',
+                'end_date' => '2026-04-05',
+            ])
+            ->assertStatus(302);
+
+        $this->assertSame(0, ArrangementJobsheetEntry::query()->where('period_id', $period->id)->count());
     }
 }

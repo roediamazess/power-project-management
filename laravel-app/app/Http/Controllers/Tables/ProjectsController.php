@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\Project;
 use App\Models\AuditLog;
+use App\Models\SiteNotification;
 use App\Models\ProjectSetupOption;
 use App\Models\ProjectPicAssignment;
 use App\Models\User;
@@ -267,6 +268,8 @@ class ProjectsController extends Controller
 
             $after = $this->projectSnapshot($project->fresh());
             AuditLog::record($request, 'create', Project::class, (string) $project->id, null, $after);
+
+            $this->notifyProjectUpdate($project, $request->user(), 'Project Created');
         });
 
         return redirect()->route('projects.index');
@@ -288,6 +291,8 @@ class ProjectsController extends Controller
 
             $after = $this->projectSnapshot($project->fresh());
             AuditLog::record($request, 'update', Project::class, (string) $project->id, $before, $after);
+
+            $this->notifyProjectUpdate($project, $request->user(), 'Project Updated');
         });
 
         return redirect()->route('projects.index');
@@ -308,9 +313,50 @@ class ProjectsController extends Controller
             $projectId = (string) $project->id;
             $project->delete();
             AuditLog::record($request, 'delete', Project::class, $projectId, $before, null);
+
+            $this->notifyProjectUpdate($project, $request->user(), 'Project Deleted');
         });
 
         return redirect()->route('projects.index');
+    }
+
+    private function notifyProjectUpdate(Project $project, ?User $actor, string $title): void
+    {
+        $actorId = $actor ? (int) $actor->id : null;
+        $body = trim(($project->cnc_id ? "{$project->cnc_id} — " : '') . ($project->project_name ?? 'Project'));
+
+        $userIds = ProjectPicAssignment::query()
+            ->where('project_id', $project->id)
+            ->pluck('pic_user_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($project->pic_user_id) {
+            $userIds[] = (int) $project->pic_user_id;
+        }
+
+        $adminIds = User::query()
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Administrator', 'Admin Officer']))
+            ->pluck('id')
+            ->values()
+            ->all();
+
+        $userIds = array_merge($userIds, $adminIds);
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+
+        foreach ($userIds as $uid) {
+            if ($actorId && $uid === $actorId) continue;
+            SiteNotification::query()->create([
+                'user_id' => $uid,
+                'type' => 'project',
+                'title' => $title,
+                'body' => $body,
+                'url' => route('projects.index'),
+                'actor_user_id' => $actorId,
+            ]);
+        }
     }
 
     private function validateProject(Request $request, ?Project $project = null): array

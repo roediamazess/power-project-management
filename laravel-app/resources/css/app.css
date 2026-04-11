@@ -105,3 +105,40 @@ body:not(.dark) .drilldown-modal-panel:not([data-theme-version="dark"]) {
     color: #ffffff !important;
     border: 1px solid rgba(255,255,255,0.1) !important;
 }
+
+/* ── HEADER AVATAR/LOGO CLEANUP (RIGHT CORNER) ── */
+.header .header-content .navbar .header-right .nav-item .nav-link,
+.header .header-content .navbar .header-right .nav-item .nav-link:hover {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.header .header-content .navbar .header-right .nav-item .nav-link::before,
+.header .header-content .navbar .header-right .nav-item .nav-link::after {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+    box-shadow: none !important;
+}
+.header .header-content .navbar .header-right img,
+.header .header-content .navbar .header-right .rounded-circle,
+.header .header-content .navbar .header-right [class*="avatar"],
+.header .header-content .navbar .header-right [style*="background-image"] {
+    display: none !important;
+    background: none !important;
+}
+.header .header-content .navbar .header-right .user_img,
+.header .header-content .navbar .header-right .img_cont,
+.header .header-content .navbar .header-right .circle,
+.header .header-content .navbar .header-right .badge-circle {
+    display: none !important;
+}
+.header .header-content .navbar .header-right [style*="border-radius: 50%"],
+.header .header-content .navbar .header-right [style*="border-radius:50%"] {
+    border-radius: 0 !important;
+}
+
+/* ── HIDE FLOATING SIDEBAR SETTINGS TRIGGER IF IT APPEARS AS A CIRCLE ── */
+.sidebar-right .sidebar-right-trigger,
+.sidebar-right .sidebar-close-trigger {
+    display: none !important;
+}

@@ -279,7 +279,7 @@ export default function DashboardPartners({
         // 5. System Version bar
         if ((versionBreakdown ?? []).length > 0) {
             create('#chart-version', {
-                series: [{ name: 'Partners', data: versionBreakdown.map((r) => r.label) }],
+                series: [{ name: 'Partners', data: versionBreakdown.map((r) => r.value) }],
                 chart: {
                     type: 'bar',
                     height: 220,

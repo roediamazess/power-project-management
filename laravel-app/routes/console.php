@@ -87,3 +87,19 @@ Artisan::command('office-agent:watch {--interval=60}', function () {
         sleep($interval);
     }
 })->purpose('Loop reporter Office Agent (untuk container worker)');
+
+Artisan::command('tokens:generate {email}', function (string $email) {
+    $user = \App\Models\User::where('email', $email)->first();
+
+    if (! $user) {
+        $this->error("User dengan email {$email} tidak ditemukan.");
+        return;
+    }
+
+    $token = $user->createToken('OpenClaw')->plainTextToken;
+
+    \App\Models\AuditLog::record(null, 'create_token', 'User', (string)$user->id, null, ['token_name' => 'OpenClaw'], ['trigger' => 'console']);
+
+    $this->info("Token berhasil dibuat untuk {$user->name} ({$user->email}):");
+    $this->line($token);
+})->purpose('Generate Sanctum token untuk user (untuk integrasi OpenClaw)');

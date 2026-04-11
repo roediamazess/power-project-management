@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SiteMessage;
+use App\Models\SiteNotification;
 use App\Models\ReleaseNote;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -53,6 +55,29 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
                 'roles' => $roles,
             ],
+            'unreadNotificationsCount' => fn () => $user
+                ? SiteNotification::query()->where('user_id', $user->id)->whereNull('read_at')->count()
+                : 0,
+            'headerNotifications' => fn () => $user
+                ? SiteNotification::query()
+                    ->where('user_id', $user->id)
+                    ->orderByDesc('created_at')
+                    ->limit(10)
+                    ->get(['id', 'type', 'title', 'body', 'url', 'read_at', 'created_at'])
+                    ->map(fn (SiteNotification $n) => [
+                        'id' => $n->id,
+                        'type' => $n->type,
+                        'title' => $n->title,
+                        'body' => $n->body,
+                        'url' => $n->url,
+                        'read_at' => $n->read_at?->toISOString(),
+                        'created_at' => $n->created_at?->toISOString(),
+                    ])
+                    ->values()
+                : [],
+            'unreadMessagesCount' => fn () => $user
+                ? SiteMessage::query()->where('recipient_id', $user->id)->whereNull('read_at')->count()
+                : 0,
         ];
     }
 }

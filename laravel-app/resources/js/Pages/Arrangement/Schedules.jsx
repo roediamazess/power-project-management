@@ -1,8 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import DatePickerInput from '@/Components/DatePickerInput';
 import { formatDateDdMmmYy, parseDateDdMmmYyToIso } from '@/utils/date';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ArrangementTabs from './Partials/ArrangementTabs';
 
 export default function Schedules({ schedules, batches, scheduleTypes, statusOptions }) {
@@ -20,7 +20,58 @@ export default function Schedules({ schedules, batches, scheduleTypes, statusOpt
         status: statusOptions?.[0] ?? 'Open',
     });
 
+    const liveTimerRef = useRef(null);
+    const liveInFlightRef = useRef(false);
+
     const batchOptions = useMemo(() => [{ id: '', name: '(No Batch)' }, ...(batches ?? [])], [batches]);
+
+    const refreshLive = () => {
+        if (liveInFlightRef.current) return;
+        liveInFlightRef.current = true;
+
+        router.reload({
+            only: ['schedules'],
+            preserveScroll: true,
+            preserveState: true,
+            onFinish: () => {
+                liveInFlightRef.current = false;
+            },
+        });
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const scheduleNext = () => {
+            if (liveTimerRef.current) window.clearTimeout(liveTimerRef.current);
+            const jitterMs = Math.floor(Math.random() * 500);
+            liveTimerRef.current = window.setTimeout(() => {
+                if (document.visibilityState === 'visible' && !processing && !showModal && !showDeleteModal) {
+                    refreshLive();
+                }
+                scheduleNext();
+            }, 5000 + jitterMs);
+        };
+
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                refreshLive();
+            }
+        };
+
+        const onFocus = () => refreshLive();
+
+        document.addEventListener('visibilitychange', onVisibility);
+        window.addEventListener('focus', onFocus);
+
+        scheduleNext();
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibility);
+            window.removeEventListener('focus', onFocus);
+            if (liveTimerRef.current) window.clearTimeout(liveTimerRef.current);
+        };
+    }, [processing, showModal, showDeleteModal]);
 
     const openNew = () => {
         setEditingId(null);
@@ -79,7 +130,7 @@ export default function Schedules({ schedules, batches, scheduleTypes, statusOpt
         post(route('arrangements.schedules.approve', { schedule: id }, false), { preserveScroll: true });
     };
 
-    const reopen = (id) => {
+    const cancelApproved = (id) => {
         post(route('arrangements.schedules.reopen', { schedule: id }, false), { preserveScroll: true });
     };
 
@@ -112,6 +163,8 @@ export default function Schedules({ schedules, batches, scheduleTypes, statusOpt
             case 'Batched':
                 return 'bg-info';
             case 'Picked Up':
+                return 'bg-warning';
+            case 'Released':
                 return 'bg-warning';
             case 'Approved':
                 return 'bg-success';
@@ -170,6 +223,29 @@ export default function Schedules({ schedules, batches, scheduleTypes, statusOpt
                                                 </td>
                                                 <td className="text-end">
                                                     <div className="d-flex gap-2 justify-content-end">
+                                                        {s.status === 'Approved' ? (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm btn-outline-danger"
+                                                                onClick={() => cancelApproved(s.id)}
+                                                                disabled={processing}
+                                                            >
+                                                                Cancel Approved
+                                                            </button>
+                                                        ) : null}
+                                            {s.status === 'Released' &&
+                                            (s.pickups_count ?? 0) >= (s.count ?? 0) &&
+                                            (s.pickups_count ?? 0) > 0 &&
+                                            (s.released_pickups_count ?? 0) === (s.pickups_count ?? 0) ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-outline-success"
+                                                    onClick={() => approve(s.id)}
+                                                    disabled={processing}
+                                                >
+                                                    Approve
+                                                </button>
+                                            ) : null}
                                                         <button
                                                             type="button"
                                                             className="btn btn-sm btn-outline-primary"
@@ -180,22 +256,11 @@ export default function Schedules({ schedules, batches, scheduleTypes, statusOpt
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            className="btn btn-sm btn-outline-success"
-                                                            onClick={() => approve(s.id)}
-                                                            disabled={processing || s.status !== 'Picked Up'}
-                                                        >
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            type="button"
                                                             className="btn btn-sm btn-outline-danger"
                                                             onClick={() => openDelete(s)}
                                                             disabled={processing || s.status !== 'Open'}
                                                         >
                                                             Delete
-                                                        </button>
-                                                        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => reopen(s.id)} disabled={processing}>
-                                                            Reopen
                                                         </button>
                                                     </div>
                                                 </td>

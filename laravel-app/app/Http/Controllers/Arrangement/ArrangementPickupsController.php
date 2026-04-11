@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\ArrangementBatch;
 use App\Models\ArrangementSchedule;
 use App\Models\ArrangementSchedulePickup;
+use App\Models\SiteNotification;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+
 
 class ArrangementPickupsController extends Controller
 {
@@ -137,14 +140,19 @@ class ArrangementPickupsController extends Controller
         $user = $request->user();
         $pickup->load('schedule:id,status');
 
+        if ($pickup->schedule?->status === 'Approved') {
+            if (! $user->hasRole('Administrator')) {
+                abort(403);
+            }
+            throw ValidationException::withMessages([
+                'pickup' => 'Pick Up sudah Approved. Silakan Cancel Approved dulu oleh Administrator.',
+            ]);
+        }
+
         if ($pickup->status === 'Released') {
             throw ValidationException::withMessages([
                 'pickup' => 'Pick Up sudah Release. Silakan Reopen dulu untuk Cancel Pick Up.',
             ]);
-        }
-
-        if ($pickup->schedule?->status === 'Approved' && ! $user->hasRole('Administrator')) {
-            abort(403);
         }
 
         if (! $user->hasRole('Administrator') && $pickup->user_id !== $user->id) {
@@ -185,21 +193,77 @@ class ArrangementPickupsController extends Controller
         $user = $request->user();
         $pickup->load('schedule:id,status');
 
-        if ($pickup->schedule?->status === 'Approved' && ! $user->hasRole('Administrator')) {
-            abort(403);
+        if ($pickup->schedule?->status === 'Approved') {
+            if (! $user->hasRole('Administrator')) {
+                abort(403);
+            }
+            throw ValidationException::withMessages([
+                'pickup' => 'Pick Up sudah Approved. Silakan Cancel Approved dulu oleh Administrator.',
+            ]);
         }
 
         if (! $user->hasRole('Administrator') && $pickup->user_id !== $user->id) {
             abort(403);
         }
 
-        if ($pickup->status === 'Released') {
-            return back();
-        }
+        DB::transaction(function () use ($pickup) {
+            $lockedPickup = ArrangementSchedulePickup::query()
+                ->whereKey($pickup->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $pickup->forceFill([
-            'status' => 'Released',
-        ])->save();
+            $lockedSchedule = ArrangementSchedule::query()
+                ->whereKey($lockedPickup->schedule_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($lockedSchedule?->status === 'Approved') {
+                throw ValidationException::withMessages([
+                    'pickup' => 'Pick Up sudah Approved. Silakan Cancel Approved dulu oleh Administrator.',
+                ]);
+            }
+
+            if ($lockedPickup->status !== 'Released') {
+                $lockedPickup->forceFill(['status' => 'Released'])->save();
+            }
+
+            if (! $lockedSchedule || $lockedSchedule->status === 'Approved') return;
+
+            $pickupCount = ArrangementSchedulePickup::query()
+                ->where('schedule_id', $lockedSchedule->id)
+                ->count();
+
+            $releasedCount = ArrangementSchedulePickup::query()
+                ->where('schedule_id', $lockedSchedule->id)
+                ->where('status', 'Released')
+                ->count();
+
+            $oldStatus = (string) $lockedSchedule->status;
+            $newStatus = ArrangementSchedule::statusFromPickupCounts((int) $lockedSchedule->count, $pickupCount, $releasedCount);
+
+            if ($oldStatus !== $newStatus) {
+                $lockedSchedule->update(['status' => $newStatus]);
+
+                if ($newStatus === 'Released') {
+                    $adminIds = User::query()
+                        ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Administrator', 'Admin Officer']))
+                        ->pluck('id')
+                        ->values()
+                        ->all();
+
+                    foreach ($adminIds as $adminId) {
+                        SiteNotification::query()->create([
+                            'user_id' => (int) $adminId,
+                            'type' => 'arrangement',
+                            'title' => 'Arrangement Ready for Approve',
+                            'body' => "{$lockedSchedule->schedule_type} ({$lockedSchedule->start_date} – {$lockedSchedule->end_date})",
+                            'url' => route('arrangements.schedules.index'),
+                            'actor_user_id' => (int) $lockedPickup->user_id,
+                        ]);
+                    }
+                }
+            }
+        });
 
         return back();
     }
@@ -209,21 +273,57 @@ class ArrangementPickupsController extends Controller
         $user = $request->user();
         $pickup->load('schedule:id,status');
 
-        if ($pickup->schedule?->status === 'Approved' && ! $user->hasRole('Administrator')) {
-            abort(403);
+        if ($pickup->schedule?->status === 'Approved') {
+            if (! $user->hasRole('Administrator')) {
+                abort(403);
+            }
+            throw ValidationException::withMessages([
+                'pickup' => 'Pick Up sudah Approved. Silakan Cancel Approved dulu oleh Administrator.',
+            ]);
         }
 
         if (! $user->hasRole('Administrator') && $pickup->user_id !== $user->id) {
             abort(403);
         }
 
-        if ($pickup->status !== 'Released') {
-            return back();
-        }
+        DB::transaction(function () use ($pickup) {
+            $lockedPickup = ArrangementSchedulePickup::query()
+                ->whereKey($pickup->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $pickup->forceFill([
-            'status' => 'Picked',
-        ])->save();
+            $lockedSchedule = ArrangementSchedule::query()
+                ->whereKey($lockedPickup->schedule_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($lockedSchedule?->status === 'Approved') {
+                throw ValidationException::withMessages([
+                    'pickup' => 'Pick Up sudah Approved. Silakan Cancel Approved dulu oleh Administrator.',
+                ]);
+            }
+
+            if ($lockedPickup->status !== 'Released') {
+                return;
+            }
+
+            $lockedPickup->forceFill(['status' => 'Picked'])->save();
+
+            if (! $lockedSchedule || $lockedSchedule->status === 'Approved') return;
+
+            $pickupCount = ArrangementSchedulePickup::query()
+                ->where('schedule_id', $lockedSchedule->id)
+                ->count();
+
+            $releasedCount = ArrangementSchedulePickup::query()
+                ->where('schedule_id', $lockedSchedule->id)
+                ->where('status', 'Released')
+                ->count();
+
+            $lockedSchedule->update([
+                'status' => ArrangementSchedule::statusFromPickupCounts((int) $lockedSchedule->count, $pickupCount, $releasedCount),
+            ]);
+        });
 
         return back();
     }

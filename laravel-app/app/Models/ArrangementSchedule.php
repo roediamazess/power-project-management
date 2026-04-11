@@ -52,5 +52,17 @@ class ArrangementSchedule extends Model
             }
         });
     }
-}
 
+    public static function statusFromPickupCounts(int $requiredCount, int $pickupCount, int $releasedCount): string
+    {
+        if ($pickupCount < $requiredCount) {
+            return 'Batched';
+        }
+
+        if ($pickupCount > 0 && $releasedCount === $pickupCount) {
+            return 'Released';
+        }
+
+        return 'Picked Up';
+    }
+}

@@ -40,6 +40,18 @@ final class PermissionCatalog
                 ],
             ],
             [
+                'key' => 'health_score',
+                'label' => 'Health Score',
+                'items' => [
+                    ['key' => 'health_score.view', 'label' => 'View'],
+                    ['key' => 'health_score.create', 'label' => 'Create'],
+                    ['key' => 'health_score.update', 'label' => 'Update'],
+                    ['key' => 'health_score.delete', 'label' => 'Delete'],
+                    ['key' => 'health_score.submit', 'label' => 'Submit'],
+                    ['key' => 'health_score.template.manage', 'label' => 'Template Manage'],
+                ],
+            ],
+            [
                 'key' => 'project_setup',
                 'label' => 'Project Setup',
                 'items' => [
@@ -74,6 +86,16 @@ final class PermissionCatalog
                 'label' => 'Audit Logs',
                 'items' => [
                     ['key' => 'audit_logs.view', 'label' => 'View'],
+                ],
+            ],
+            [
+                'key' => 'holidays',
+                'label' => 'Holiday',
+                'items' => [
+                    ['key' => 'holidays.view', 'label' => 'View'],
+                    ['key' => 'holidays.create', 'label' => 'Create'],
+                    ['key' => 'holidays.update', 'label' => 'Update'],
+                    ['key' => 'holidays.delete', 'label' => 'Delete'],
                 ],
             ],
             [

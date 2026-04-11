@@ -26,6 +26,14 @@ class TimeBoxingPermissionsTest extends TestCase
             ->assertStatus(200);
 
         $this->actingAs($user)
+            ->get('/dashboard/time-boxing')
+            ->assertStatus(200);
+
+        $this->actingAs($user)
+            ->get('/health-score')
+            ->assertStatus(200);
+
+        $this->actingAs($user)
             ->get('/tables/project-setup')
             ->assertStatus(200);
     }

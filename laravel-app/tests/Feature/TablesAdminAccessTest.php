@@ -25,7 +25,7 @@ class TablesAdminAccessTest extends TestCase
         $this->get('/tables/project-setup')->assertStatus(200);
         $this->get('/tables/time-boxing')->assertStatus(200);
         $this->get('/tables/time-boxing-setup')->assertStatus(200);
+        $this->get('/tables/holiday')->assertStatus(200);
         $this->get('/tables/audit-logs')->assertStatus(200);
     }
 }
-

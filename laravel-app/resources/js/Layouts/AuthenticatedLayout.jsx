@@ -4,11 +4,14 @@ import { formatDateDdMmmYy } from '@/utils/date';
 
 export default function AuthenticatedLayout({ header, children }) {
     const page = usePage();
-    const user = page.props.auth.user;
-    const roles = page.props.auth.roles || [];
+    const user = page.props.auth?.user;
+    const roles = page.props.auth?.roles || [];
     const url = page.url;
+    const unreadNotificationsCount = Number(page.props.unreadNotificationsCount ?? 0);
+    const headerNotifications = Array.isArray(page.props.headerNotifications) ? page.props.headerNotifications : [];
+    const unreadMessagesCount = Number(page.props.unreadMessagesCount ?? 0);
 
-    const avatarSrc = user?.profile_photo_url || '/images/user.jpg';
+    const displayName = String(user?.name ?? user?.email ?? user?.username ?? 'User');
 
     const [showVersionHistory, setShowVersionHistory] = useState(false);
 
@@ -844,7 +847,7 @@ export default function AuthenticatedLayout({ header, children }) {
                             <span className="brand-title-short">PPM</span>
                         </div>
                     </Link>
-                    <div className="nav-control">
+                    <div className="nav-control d-none d-md-block">
                         <div className="hamburger">
                             <span className="line" />
                             <span className="line" />
@@ -936,6 +939,19 @@ export default function AuthenticatedLayout({ header, children }) {
                                 </div>
 
                                 <ul className="navbar-nav header-right">
+                                    <style>{`
+                                        .header-right .header-profile img,
+                                        .header-right li.nav-item > a img {
+                                            display: none !important;
+                                        }
+                                        #user-menu, #user-menu::before, #user-menu::after {
+                                            background: transparent !important;
+                                            box-shadow: none !important;
+                                        }
+                                        #user-menu img, #user-menu svg {
+                                            display: none !important;
+                                        }
+                                    `}</style>
                                     <li className="nav-item d-none d-md-flex align-items-center">
                                         <div className="input-group search-area">
                                             <input
@@ -983,85 +999,82 @@ export default function AuthenticatedLayout({ header, children }) {
                                         </a>
                                     </li>
                                     <li className="nav-item dropdown notification_dropdown">
-                                        <a className="nav-link" href="javascript:void(0)" data-bs-toggle="dropdown">
-                                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M26.7727 10.8757C26.7043 10.6719 26.581 10.4909 26.4163 10.3528C26.2516 10.2146 26.0519 10.1247 25.8393 10.0929L18.3937 8.95535L15.0523 1.83869C14.9581 1.63826 14.8088 1.46879 14.6218 1.35008C14.4349 1.23137 14.218 1.16833 13.9965 1.16833C13.775 1.16833 13.5581 1.23137 13.3712 1.35008C13.1842 1.46879 13.0349 1.63826 12.9407 1.83869L9.59934 8.95535L2.15367 10.0929C1.9416 10.1252 1.74254 10.2154 1.57839 10.3535C1.41423 10.4916 1.29133 10.6723 1.22321 10.8757C1.15508 11.0791 1.14436 11.2974 1.19222 11.5065C1.24008 11.7156 1.34468 11.9075 1.49451 12.061L6.92067 17.6167L5.63734 25.4777C5.60232 25.6934 5.6286 25.9147 5.7132 26.1162C5.79779 26.3177 5.93729 26.4914 6.1158 26.6175C6.29432 26.7436 6.50466 26.817 6.72287 26.8294C6.94108 26.8418 7.15838 26.7926 7.35001 26.6875L14 23.0149L20.65 26.6875C20.8416 26.7935 21.0592 26.8434 21.2779 26.8316C21.4965 26.8197 21.7075 26.7466 21.8865 26.6205C22.0655 26.4944 22.2055 26.3204 22.2903 26.1186C22.3751 25.9167 22.4014 25.695 22.3662 25.4789L21.0828 17.6179L26.5055 12.061C26.6546 11.9071 26.7585 11.715 26.8056 11.5059C26.8527 11.2968 26.8413 11.0787 26.7727 10.8757Z" fill="#717579" />
-                                            </svg>
-                                            <span className="badge light text-white bg-secondary rounded-circle">76</span>
-                                        </a>
-                                        <div className="dropdown-menu dropdown-menu-end p-3 text-center">
-                                            Favorites / Special Actions
-                                        </div>
-                                    </li>
-
-                                    <li className="nav-item dropdown notification_dropdown">
                                         <a className="nav-link" href="javascript:void(0)" role="button" data-bs-toggle="dropdown">
                                             <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M23.3333 19.8333H23.1187C23.2568 19.4597 23.3295 19.065 23.3333 18.6666V12.8333C23.3294 10.7663 22.6402 8.75902 21.3735 7.12565C20.1068 5.49228 18.3343 4.32508 16.3333 3.80679V3.49996C16.3333 2.88112 16.0875 2.28763 15.6499 1.85004C15.2123 1.41246 14.6188 1.16663 14 1.16663C13.3812 1.16663 12.7877 1.41246 12.3501 1.85004C11.9125 2.28763 11.6667 2.88112 11.6667 3.49996V3.80679C9.66574 4.32508 7.89317 5.49228 6.6265 7.12565C5.35983 8.75902 4.67058 10.7663 4.66667 12.8333V18.6666C4.67053 19.065 4.74316 19.4597 4.88133 19.8333H4.66667C4.35725 19.8333 4.0605 19.9562 3.84171 20.175C3.62292 20.3938 3.5 20.6905 3.5 21C3.5 21.3094 3.62292 21.6061 3.84171 21.8249C4.0605 22.0437 4.35725 22.1666 4.66667 22.1666H23.3333C23.6428 22.1666 23.9395 22.0437 24.1583 21.8249C24.3771 21.6061 24.5 21.3094 24.5 21C24.5 20.6905 24.3771 20.3938 24.1583 20.175C23.9395 19.9562 23.6428 19.8333 23.3333 19.8333Z" fill="#717579" />
                                                 <path d="M9.9819 24.5C10.3863 25.2088 10.971 25.7981 11.6766 26.2079C12.3823 26.6178 13.1838 26.8337 13.9999 26.8337C14.816 26.8337 15.6175 26.6178 16.3232 26.2079C17.0288 25.7981 17.6135 25.2088 18.0179 24.5H9.9819Z" fill="#717579" />
                                             </svg>
-                                            <span className="badge light text-white bg-warning rounded-circle">12</span>
+                                            {unreadNotificationsCount > 0 ? (
+                                                <span className="badge light text-white bg-warning rounded-circle">{unreadNotificationsCount}</span>
+                                            ) : null}
                                         </a>
                                         <div className="dropdown-menu dropdown-menu-end">
                                             <div id="DZ_W_Notification1" className="widget-media dlab-scroll p-3" style={{ height: 380 }}>
                                                 <ul className="timeline">
-                                                    <li>
-                                                        <div className="timeline-panel">
-                                                            <div className="media me-2">
-                                                                <img alt="image" width="50" src="/images/avatar/1.jpg" />
+                                                    {headerNotifications.length ? (
+                                                        headerNotifications.map((n) => (
+                                                            <li key={n.id}>
+                                                                <div className="timeline-panel">
+                                                                    <div className="media me-2 media-info">{String(n.type ?? '').slice(0, 2).toUpperCase() || 'N'}</div>
+                                                                    <div className="media-body">
+                                                                        <Link href={route('notifications.open', { notification: n.id })} className="text-reset">
+                                                                            <h6 className="mb-1">{n.title}</h6>
+                                                                        </Link>
+                                                                        <small className="d-block">
+                                                                            {n.created_at ? new Date(n.created_at).toLocaleString() : ''}
+                                                                        </small>
+                                                                    </div>
+                                                                </div>
+                                                            </li>
+                                                        ))
+                                                    ) : (
+                                                        <li>
+                                                            <div className="timeline-panel">
+                                                                <div className="media-body">
+                                                                    <div className="text-muted">No notifications</div>
+                                                                </div>
                                                             </div>
-                                                            <div className="media-body">
-                                                                <h6 className="mb-1">Dr sultads Send you Photo</h6>
-                                                                <small className="d-block">29 July 2020 - 02:26 PM</small>
-                                                            </div>
-                                                        </div>
-                                                    </li>
-                                                    <li>
-                                                        <div className="timeline-panel">
-                                                            <div className="media me-2 media-info">KG</div>
-                                                            <div className="media-body">
-                                                                <h6 className="mb-1">Resport created successfully</h6>
-                                                                <small className="d-block">29 July 2020 - 02:26 PM</small>
-                                                            </div>
-                                                        </div>
-                                                    </li>
-                                                    <li>
-                                                        <div className="timeline-panel">
-                                                            <div className="media me-2 media-success">
-                                                                <i className="fa fa-home" />
-                                                            </div>
-                                                            <div className="media-body">
-                                                                <h6 className="mb-1">Reminder : Treatment Time!</h6>
-                                                                <small className="d-block">29 July 2020 - 02:26 PM</small>
-                                                            </div>
-                                                        </div>
-                                                    </li>
+                                                        </li>
+                                                    )}
                                                 </ul>
                                             </div>
-                                            <a className="all-notification" href="javascript:void(0)">
-                                                See all notifications <i className="ti-arrow-end" />
-                                            </a>
+                                            <div className="d-flex justify-content-between align-items-center px-3 pb-2">
+                                                <Link className="all-notification" href={route('notifications.index')}>
+                                                    See all notifications <i className="ti-arrow-end" />
+                                                </Link>
+                                                {unreadNotificationsCount > 0 ? (
+                                                    <Link className="btn btn-sm btn-outline-secondary" href={route('notifications.read_all')} method="post" as="button">
+                                                        Mark all read
+                                                    </Link>
+                                                ) : null}
+                                            </div>
                                         </div>
                                     </li>
 
-                                    <li className="nav-item dropdown notification_dropdown">
+                                    <li className="nav-item dropdown notification_dropdown d-none d-md-block">
                                         <Link className="nav-link bell-link" href={route('messages.index')}>
                                             <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M27.076 6.24662C26.962 5.48439 26.5787 4.78822 25.9955 4.28434C25.4123 3.78045 24.6679 3.50219 23.8971 3.5H4.10289C3.33217 3.50219 2.58775 3.78045 2.00456 4.28434C1.42137 4.78822 1.03803 5.48439 0.924011 6.24662L14 14.7079L27.076 6.24662Z" fill="#717579" />
                                                 <path d="M14.4751 16.485C14.3336 16.5765 14.1686 16.6252 14 16.6252C13.8314 16.6252 13.6664 16.5765 13.5249 16.485L0.875 8.30025V21.2721C0.875926 22.1279 1.2163 22.9484 1.82145 23.5536C2.42659 24.1587 3.24707 24.4991 4.10288 24.5H23.8971C24.7529 24.4991 25.5734 24.1587 26.1786 23.5536C26.7837 22.9484 27.1241 22.1279 27.125 21.2721V8.29938L14.4751 16.485Z" fill="#717579" />
                                             </svg>
-                                            <span className="badge light text-white bg-danger rounded-circle">76</span>
+                                            {unreadMessagesCount > 0 ? (
+                                                <span className="badge light text-white bg-danger rounded-circle">{unreadMessagesCount}</span>
+                                            ) : null}
                                         </Link>
                                     </li>
 
-                                    <li className="nav-item dropdown header-profile">
+                                    <li className="nav-item dropdown">
                                         <a
+                                            id="user-menu"
                                             className="nav-link"
                                             href="#"
                                             role="button"
                                             data-bs-toggle="dropdown"
                                         >
-                                            <img src={avatarSrc} width="56" alt="" />
+                                            <span className="d-inline-flex align-items-center fw-semibold" style={{ minWidth: 0, maxWidth: 220 }}>
+                                                <span className="text-truncate" style={{ maxWidth: 220 }} title={displayName}>{displayName}</span>
+                                                <i className="ms-2 fas fa-chevron-down" />
+                                            </span>
                                         </a>
                                         <div className="dropdown-menu dropdown-menu-end">
                                             <Link href={route('profile.edit')} className="dropdown-item ai-icon">
@@ -1077,7 +1090,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                             </Link>
                                             <div className="dropdown-divider" />
                                             <div className="px-3 py-2 small text-muted">
-                                                {user.name}
+                                                {displayName}
                                             </div>
                                         </div>
                                     </li>
@@ -1109,13 +1122,13 @@ export default function AuthenticatedLayout({ header, children }) {
                                     style={{ display: openMenu.dashboard ? 'block' : 'none' }}
                                 >
                                     <li><Link href={route('dashboard')} className={isActiveHref(route('dashboard')) ? 'mm-active' : ''} onClick={closeAllMenus}>Dashboard</Link></li>
-                                    <li><Link href={route('office-agent.index')} className={isActiveHref(route('office-agent.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Dashboard Agent</Link></li>
                                     <li><Link href={route('dashboard.partners')} className={isActiveHref(route('dashboard.partners')) ? 'mm-active' : ''} onClick={closeAllMenus}>Partners</Link></li>
                                     <li><Link href={route('projects.index')} className={isActiveHref(route('projects.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Project</Link></li>
+                                    <li><Link href={route('dashboard.time-boxing', {}, false)} className={isActiveHref(route('dashboard.time-boxing', {}, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Time Boxing</Link></li>
                                     <li><Link href={route('contacts.index')} className={isActiveHref(route('contacts.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Contacts</Link></li>
                                     <li><Link href={route('kanban.index')} className={isActiveHref(route('kanban.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Kanban</Link></li>
                                     <li><Link href={route('calendar.index')} className={isActiveHref(route('calendar.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Calendar</Link></li>
-                                    <li><Link href={route('messages.index')} className={isActiveHref(route('messages.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Messages</Link></li>
+                                    <li className="d-none d-md-block"><Link href={route('messages.index')} className={isActiveHref(route('messages.index')) ? 'mm-active' : ''} onClick={closeAllMenus}>Messages</Link></li>
                                 </ul>
                             </li>
                             <li>
@@ -1367,6 +1380,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                     <li><Link href={route('tables.partner-setup.index', { category: 'implementation_type' }, false)} className={isActiveHref(route('tables.partner-setup.index', { category: 'implementation_type' }, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Partner Setup</Link></li>
                                     <li><Link href={route('tables.project-setup.index', { category: 'type' }, false)} className={isActiveHref(route('tables.project-setup.index', { category: 'type' }, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Project Setup</Link></li>
                                     <li><Link href={route('tables.time-boxing-setup.index', { category: 'type' }, false)} className={isActiveHref(route('tables.time-boxing-setup.index', { category: 'type' }, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Time Boxing Setup</Link></li>
+                                    <li><Link href={route('tables.holiday.index', {}, false)} className={isActiveHref(route('tables.holiday.index', {}, false)) ? 'mm-active' : ''} onClick={closeAllMenus}>Holiday</Link></li>
 
                                     <li><Link href={route('template.show', { page: 'table-bootstrap-basic' })} className={isActiveHref(route('template.show', { page: 'table-bootstrap-basic' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Bootstrap</Link></li>
                                     <li><Link href={route('template.show', { page: 'table-datatable-basic' })} className={isActiveHref(route('template.show', { page: 'table-datatable-basic' })) ? 'mm-active' : ''} onClick={closeAllMenus}>Datatable</Link></li>
@@ -1404,8 +1418,18 @@ export default function AuthenticatedLayout({ header, children }) {
                             </li>
                             <li>
                                 <Link
-                                    href={route('time-boxing.index', {}, false)}
-                                    className={isActiveHref(route('time-boxing.index', {}, false)) ? 'mm-active' : ''}
+                                    href={route('health-score.index', {}, false)}
+                                    className={isActiveHref(route('health-score.index', {}, false)) ? 'mm-active' : ''}
+                                    onClick={closeAllMenus}
+                                >
+                                    <i className="fas fa-heartbeat" />
+                                    <span className="nav-text">Health Score</span>
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href={route('dashboard.time-boxing', {}, false)}
+                                    className={isActiveHref(route('dashboard.time-boxing', {}, false)) ? 'mm-active' : ''}
                                     onClick={closeAllMenus}
                                 >
                                     <i className="fas fa-stopwatch" />
@@ -1488,8 +1512,41 @@ export default function AuthenticatedLayout({ header, children }) {
                 </div>
 
                 <div className="content-body default-height">
+                    <style>{`
+                        @media (max-width: 767.98px) {
+                            .content-body.default-height {
+                                padding-bottom: 76px;
+                            }
+                        }
+                    `}</style>
                     <div className="container-fluid">
                         {isValidElement(children) ? cloneElement(children, { pageSearchQuery }) : children}
+                    </div>
+                </div>
+
+                <div className="d-md-none" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1030, background: '#ffffff', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                    <div className="d-flex justify-content-around align-items-center" style={{ height: 64 }}>
+                        <Link
+                            href={route('projects.index', {}, false)}
+                            className={`d-flex flex-column align-items-center text-decoration-none ${isActiveHref(route('projects.index', {}, false)) ? 'text-primary' : 'text-muted'}`}
+                        >
+                            <i className="fas fa-clipboard-list" style={{ fontSize: 18 }} />
+                            <span style={{ fontSize: 12, marginTop: 4 }}>Projects</span>
+                        </Link>
+                        <Link
+                            href={route('health-score.index', {}, false)}
+                            className={`d-flex flex-column align-items-center text-decoration-none ${isActiveHref(route('health-score.index', {}, false)) ? 'text-primary' : 'text-muted'}`}
+                        >
+                            <i className="fas fa-heartbeat" style={{ fontSize: 18 }} />
+                            <span style={{ fontSize: 12, marginTop: 4 }}>Health Score</span>
+                        </Link>
+                        <Link
+                            href={route('dashboard.time-boxing', {}, false)}
+                            className={`d-flex flex-column align-items-center text-decoration-none ${isActiveHref(route('dashboard.time-boxing', {}, false)) ? 'text-primary' : 'text-muted'}`}
+                        >
+                            <i className="fas fa-stopwatch" style={{ fontSize: 18 }} />
+                            <span style={{ fontSize: 12, marginTop: 4 }}>Time Boxing</span>
+                        </Link>
                     </div>
                 </div>
 

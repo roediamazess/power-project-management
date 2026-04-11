@@ -27,6 +27,12 @@ storage_data_*.tar.gz
 
 # backup artifacts (never commit)
 laravel-app/backup/
+laravel-app/exports/
+
+# migration/export artifacts (never commit)
+*.dump
+*.tar.gz
+laravel-app/.env.production
 
 # local build markers
 laravel-app/BUILD_MARKER.txt

@@ -32,7 +32,35 @@ const collapseSidebarOnMobile = () => {
 };
 
 if (typeof window !== 'undefined' && window.Ziggy && window.location?.origin) {
-    window.Ziggy.url = window.location.origin;
+    try {
+        const existing = new URL(String(window.Ziggy.url || ''), window.location.origin);
+        const basePath = existing.pathname && existing.pathname !== '/' ? existing.pathname.replace(/\/+$/, '') : '';
+        window.Ziggy.url = window.location.origin + basePath;
+    } catch (_e) {
+        window.Ziggy.url = window.location.origin;
+    }
+}
+
+if (typeof window !== 'undefined' && !window.__pp_route_wrapped__ && typeof window.route === 'function') {
+    window.__pp_route_wrapped__ = true;
+
+    const originalRoute = window.route;
+
+    window.route = (name, params, absolute = true, config = window.Ziggy) => {
+        if (absolute === false) {
+            try {
+                const base = new URL(String(config?.url || ''), window.location.origin);
+                const basePath = base.pathname && base.pathname !== '/' ? base.pathname.replace(/\/+$/, '') : '';
+                const rel = originalRoute(name, params, false, config);
+                const relPath = String(rel || '').startsWith('/') ? String(rel || '') : `/${rel || ''}`;
+                return `${basePath}${relPath}` || relPath;
+            } catch (_e) {
+                return originalRoute(name, params, false, config);
+            }
+        }
+
+        return originalRoute(name, params, absolute, config);
+    };
 }
 
 

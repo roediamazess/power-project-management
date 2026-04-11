@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useEffect, useRef } from 'react';
 
 function Dashboard() {
@@ -144,9 +144,6 @@ function Dashboard() {
                                                     systems
                                                 </span>
                                                 <div className="d-flex flex-wrap gap-2 mt-3">
-                                                    <Link href={route('office-agent.index')} className="btn btn-rounded">
-                                                        Open Office Agent
-                                                    </Link>
                                                     <a href="#" className="btn btn-rounded btn-outline-light">
                                                         Try Free Now
                                                     </a>

@@ -24,6 +24,12 @@ export default function Index({ isManager, batches, myPickups, myPoints }) {
         if (typeof window !== 'undefined') window.alert(text);
     };
 
+    const formatPickupStatusLabel = (pickup) => {
+        if (pickup?.schedule?.status === 'Approved') return 'Approved';
+        if (pickup?.status === 'Picked') return 'Picked Up';
+        return pickup?.status ?? 'Picked Up';
+    };
+
     const pickup = (scheduleId) => {
         post(route('arrangements.pickups.store', { schedule: scheduleId }, false), {
             preserveScroll: true,
@@ -194,7 +200,8 @@ export default function Index({ isManager, batches, myPickups, myPoints }) {
 
         return (myPickups ?? []).some((p) => {
             if (!p?.schedule) return false;
-            if (p.status !== 'Picked' && p.status !== 'Released') return false;
+            const isActive = p.status === 'Picked' || p.status === 'Released' || p.schedule?.status === 'Approved';
+            if (!isActive) return false;
             const ps = parseDateOnly(p.schedule.start_date);
             const pe = parseDateOnly(p.schedule.end_date);
             if (!ps || !pe) return false;
@@ -376,11 +383,23 @@ export default function Index({ isManager, batches, myPickups, myPoints }) {
                                                     </td>
                                                     <td>{p.schedule?.batch ? `${p.schedule.batch.name} (${p.schedule.batch.requirement_points})` : '-'}</td>
                                                     <td>
-                                                        <span className={`badge ${p.status === 'Released' ? 'bg-warning' : 'bg-info'}`}>{p.status ?? 'Picked'}</span>
+                                                        <span
+                                                            className={`badge ${
+                                                                p.schedule?.status === 'Approved'
+                                                                    ? 'bg-success'
+                                                                    : p.status === 'Released'
+                                                                      ? 'bg-warning'
+                                                                      : 'bg-info'
+                                                            }`}
+                                                        >
+                                                            {formatPickupStatusLabel(p)}
+                                                        </span>
                                                     </td>
                                                     <td>{p.points}</td>
                                                     <td className="text-end">
-                                                        {p.status === 'Released' ? (
+                                                        {p.schedule?.status === 'Approved' ? (
+                                                            <span className="text-muted">-</span>
+                                                        ) : p.status === 'Released' ? (
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-sm btn-outline-warning"
@@ -395,7 +414,7 @@ export default function Index({ isManager, batches, myPickups, myPoints }) {
                                                                     type="button"
                                                                     className="btn btn-sm btn-outline-danger"
                                                                     onClick={() => openPickupAction('cancel', p)}
-                                                                    disabled={processing || p.schedule?.status === 'Approved'}
+                                                                    disabled={processing}
                                                                 >
                                                                     Cancel Pick Up
                                                                 </button>
@@ -403,7 +422,7 @@ export default function Index({ isManager, batches, myPickups, myPoints }) {
                                                                     type="button"
                                                                     className="btn btn-sm btn-warning"
                                                                     onClick={() => openPickupAction('release', p)}
-                                                                    disabled={processing || p.schedule?.status === 'Approved'}
+                                                                    disabled={processing}
                                                                 >
                                                                     Release
                                                                 </button>

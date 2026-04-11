@@ -14,7 +14,8 @@ RUN npm run build
 
 FROM php:8.4-fpm-alpine AS app
 WORKDIR /var/www/html
-RUN apk add --no-cache icu-libs libzip postgresql-libs postgresql-client unzip bash rclone \
+RUN apk add --no-cache --upgrade musl \
+  && apk add --no-cache icu-libs libzip postgresql-libs postgresql-client unzip bash rclone \
   && apk add --no-cache --virtual .build-deps icu-dev libzip-dev oniguruma-dev postgresql-dev \
   && docker-php-ext-configure intl \
   && docker-php-ext-install -j$(nproc) intl opcache pdo_mysql pdo_pgsql zip \
